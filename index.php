@@ -68,8 +68,38 @@ switch ($page) {
         $admin->toggleUserStatus();
         break;
 
-    // Placeholder pages for admin (sidebar links)
+    // === Admin Donors Management ===
     case 'admin_donors':
+        $admin = new AdminController();
+        $admin->manageDonors();
+        break;
+
+    case 'admin_donor_view':
+        $admin = new AdminController();
+        $admin->viewDonor();
+        break;
+
+    case 'admin_donor_add':
+        $admin = new AdminController();
+        $admin->addDonor();
+        break;
+
+    case 'admin_donor_edit':
+        $admin = new AdminController();
+        $admin->editDonor();
+        break;
+
+    case 'admin_donor_delete':
+        $admin = new AdminController();
+        $admin->deleteDonor();
+        break;
+
+    case 'admin_donor_history':
+        $admin = new AdminController();
+        $admin->donorHistory();
+        break;
+
+    // Placeholder pages for admin (sidebar links)
     case 'admin_hospitals':
     case 'admin_inventory':
     case 'admin_requests':

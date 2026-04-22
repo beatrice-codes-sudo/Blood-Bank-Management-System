@@ -145,4 +145,73 @@ class DonorModel {
             'city'          => $data['city'] ?? null,
         ]);
     }
+
+    /**
+     * Get global donor statistics for admin dashboard
+     */
+    public function getGlobalStats() {
+        $stats = [];
+
+        // Total donors
+        $stmt = $this->db->query("SELECT COUNT(*) as total FROM donors");
+        $stats['total'] = $stmt->fetch()['total'];
+
+        // Active donors (user is_active = 1)
+        $stmt = $this->db->query("SELECT COUNT(*) as total FROM donors d JOIN users u ON d.user_id = u.user_id WHERE u.is_active = 1");
+        $stats['active'] = $stmt->fetch()['total'];
+
+        // Inactive donors
+        $stmt = $this->db->query("SELECT COUNT(*) as total FROM donors d JOIN users u ON d.user_id = u.user_id WHERE u.is_active = 0");
+        $stats['inactive'] = $stmt->fetch()['total'];
+
+        // Eligible
+        $stmt = $this->db->query("SELECT COUNT(*) as total FROM donors WHERE eligibility_status = 'Eligible'");
+        $stats['eligible'] = $stmt->fetch()['total'];
+
+        // Deferred
+        $stmt = $this->db->query("SELECT COUNT(*) as total FROM donors WHERE eligibility_status = 'Deferred'");
+        $stats['deferred'] = $stmt->fetch()['total'];
+
+        // Permanently Deferred
+        $stmt = $this->db->query("SELECT COUNT(*) as total FROM donors WHERE eligibility_status = 'Permanently Deferred'");
+        $stats['permanently_deferred'] = $stmt->fetch()['total'];
+
+        // Donors who have donated at least once
+        $stmt = $this->db->query("SELECT COUNT(DISTINCT donor_id) as total FROM donations WHERE status = 'Completed'");
+        $stats['have_donated'] = $stmt->fetch()['total'];
+
+        return $stats;
+    }
+
+    /**
+     * Get all blood types (for dropdowns)
+     */
+    public function getBloodTypes() {
+        $stmt = $this->db->query("SELECT * FROM blood_types ORDER BY blood_type_id");
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Delete donor and associated user record
+     */
+    public function delete($donorId) {
+        // Get user_id first
+        $stmt = $this->db->prepare("SELECT user_id FROM donors WHERE donor_id = :donor_id");
+        $stmt->execute(['donor_id' => $donorId]);
+        $donor = $stmt->fetch();
+
+        if (!$donor) return false;
+
+        // Delete user (donor cascades via FK ON DELETE CASCADE)
+        $stmt = $this->db->prepare("DELETE FROM users WHERE user_id = :user_id");
+        return $stmt->execute(['user_id' => $donor['user_id']]);
+    }
+
+    /**
+     * Update donor eligibility status
+     */
+    public function updateEligibility($donorId, $status) {
+        $stmt = $this->db->prepare("UPDATE donors SET eligibility_status = :status WHERE donor_id = :donor_id");
+        return $stmt->execute(['status' => $status, 'donor_id' => $donorId]);
+    }
 }
