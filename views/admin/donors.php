@@ -11,7 +11,6 @@ ob_start();
 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
     <div>
         <h1 class="font-display text-[32px] font-bold text-hemo-navy">Donors</h1>
-        <p class="text-hemo-charcoal mt-1">Manage blood donors, view their history, and update profiles.</p>
     </div>
     <div class="flex items-center gap-3">
         <button onclick="openModal('addDonorModal')" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-hemo-red text-white font-semibold text-sm hover:bg-hemo-deep-red transition-default shadow-button">

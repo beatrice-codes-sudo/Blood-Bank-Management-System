@@ -182,7 +182,7 @@ require_once __DIR__ . '/layouts/header.php';
                 <h4 class="font-semibold text-sm uppercase tracking-wider mb-4 text-hemo-gold">Contact</h4>
                 <ul class="space-y-3 text-sm text-gray-400">
                     <li class="flex items-center gap-2"><i class="fas fa-envelope w-4"></i> info@hemolink.org</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-phone w-4"></i> +254 700 000 000</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-phone w-4"></i> +254 797 574 302</li>
                     <li class="flex items-center gap-2"><i class="fas fa-location-dot w-4"></i> Nairobi, Kenya</li>
                 </ul>
             </div>
