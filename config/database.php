@@ -2,19 +2,27 @@
 /**
  * Database Connection Class
  * Singleton PDO connection to MySQL
+ * Reads credentials from .env file
  */
 class Database {
     private static $instance = null;
     private $pdo;
 
-    private $host = 'localhost';
-    private $dbname = 'bms_db';
-    private $username = 'root';
-    private $password = '';
-    private $charset = 'utf8mb4';
-
     private function __construct() {
-        $dsn = "mysql:host={$this->host};dbname={$this->dbname};charset={$this->charset}";
+        // Load .env file
+        $envPath = __DIR__ . '/../.env';
+        if (!file_exists($envPath)) {
+            die("Error: .env file not found at " . realpath(__DIR__ . '/..'));
+        }
+        $env = parse_ini_file($envPath);
+
+        $host    = $env['DB_HOST'] ?? 'localhost';
+        $dbname  = $env['DB_NAME'] ?? 'bms_db';
+        $username = $env['DB_USER'] ?? 'root';
+        $password = $env['DB_PASS'] ?? '';
+        $charset = 'utf8mb4';
+
+        $dsn = "mysql:host={$host};dbname={$dbname};charset={$charset}";
         $options = [
             PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
@@ -22,7 +30,7 @@ class Database {
         ];
 
         try {
-            $this->pdo = new PDO($dsn, $this->username, $this->password, $options);
+            $this->pdo = new PDO($dsn, $username, $password, $options);
         } catch (PDOException $e) {
             die("Database connection failed: " . $e->getMessage());
         }

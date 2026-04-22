@@ -40,10 +40,10 @@ require_once __DIR__ . '/layouts/header.php';
         <div class="grid lg:grid-cols-2 gap-16 items-center">
             <!-- Left: Content -->
             <div class="text-white">
-                <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card text-sm font-medium mb-8">
+                <!-- <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card text-sm font-medium mb-8">
                     <span class="w-2 h-2 rounded-full bg-hemo-gold pulse-dot"></span>
                     Saving Lives, One Drop at a Time
-                </div>
+                </div> -->
                 <h2 class="font-display text-5xl lg:text-6xl font-bold leading-tight mb-6">
                     Every Drop<br>
                     <span class="text-hemo-gold">Counts</span>

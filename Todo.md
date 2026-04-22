@@ -11,3 +11,12 @@ The days objective:
  Strictly use the design layout provided in the DesignLayout.md file.
  and make neccesary changes to the schema to align with todays goal.
  Make sure to strictly adhere to the folder structure. 
+
+
+
+ DONORS PROMPT
+ Implement the donors page on the admin dashboard. The page should display all the donors in the system. Each donor should have a button to view their profile, edit their profile, delete their profile, and a button to view their donation history.
+ It should have stats for the donors, such as the total number of donors, the number of active donors, the number of inactive donors, the number of donors who have donated blood, etc.
+ Make sure all buttons work and controllers are updated to provide functionality to the page. use the design layout provided in the DesignLayout.md file as a reference for the design.Also have a way to search and filter the donors based on their blood type, eligibility status, and donation history. The search and filter should be done in real-time as the user types or selects an option from the dropdown menu. and also ensure that the page is responsive and works on all devices. 
+ Also have a button to add a new donor at the top right of the page, which should open a modal to add a new donor. The modal should have the same fields as the donors table.
+ 

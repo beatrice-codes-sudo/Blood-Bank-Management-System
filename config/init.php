@@ -4,10 +4,11 @@
  * Include this file at the top of index.php to load everything
  */
 
+// Load configuration (must be before session_start for session ini settings)
+require_once __DIR__ . '/app.php';
+
 session_start();
 
-// Load configuration
-require_once __DIR__ . '/app.php';
 require_once __DIR__ . '/database.php';
 
 // Load models

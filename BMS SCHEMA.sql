@@ -341,28 +341,4 @@ CREATE TABLE `audit_logs` (
     CONSTRAINT `audit_logs_changed_by_foreign` FOREIGN KEY (`changed_by`) REFERENCES `users` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- --------------------------------------------------------
--- Seed Data
--- --------------------------------------------------------
-
--- Roles
-INSERT INTO `roles` (`role_id`, `role_name`, `role_description`) VALUES
-(1, 'admin', 'System Administrator - Full access to all modules'),
-(2, 'hospital_manager', 'Hospital Manager - Manages hospital blood requests'),
-(3, 'donor', 'Donor - Manages personal donation records');
-
--- Blood Types
-INSERT INTO `blood_types` (`blood_type_id`, `type_name`) VALUES
-(1, 'A+'), (2, 'A-'), (3, 'B+'), (4, 'B-'),
-(5, 'AB+'), (6, 'AB-'), (7, 'O+'), (8, 'O-');
-
--- Components
-INSERT INTO `components` (`component_id`, `component_name`) VALUES
-(1, 'Whole Blood'), (2, 'Red Blood Cells'), (3, 'Platelets'),
-(4, 'Plasma'), (5, 'Cryoprecipitate');
-
--- Default Admin User (password: admin123)
-INSERT INTO `users` (`user_id`, `role_id`, `username`, `email`, `password_hash`, `first_name`, `last_name`, `phone`, `is_active`) VALUES
-(1, 1, 'admin', 'admin@hemolink.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'System', 'Admin', '+254700000000', 1);
-
 SET foreign_key_checks = 1;
