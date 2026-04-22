@@ -19,7 +19,13 @@ $userInitials = strtoupper(substr($_SESSION['first_name'] ?? 'U', 0, 1) . substr
     
     <!-- Logo Header -->
     <div class="h-[72px] flex items-center px-6 border-b border-hemo-border flex-shrink-0">
-        <a href="<?php echo BASE_URL; ?>/index.php" class="flex items-center gap-3 no-underline">
+        <?php
+        $dashboardPage = 'home';
+        if (isset($_SESSION['role_name'])) {
+            $dashboardPage = $_SESSION['role_name'] === 'admin' ? 'admin_dashboard' : ($_SESSION['role_name'] === 'hospital_manager' ? 'hospital_dashboard' : 'donor_dashboard');
+        }
+        ?>
+        <a href="<?php echo BASE_URL; ?>/index.php?page=<?php echo $dashboardPage; ?>" class="flex items-center gap-3 no-underline">
             <div class="w-10 h-10 rounded-lg gradient-red flex items-center justify-center">
                 <i class="fas fa-droplet text-white text-lg"></i>
             </div>

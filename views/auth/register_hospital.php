@@ -55,7 +55,11 @@ require_once __DIR__ . '/../layouts/header.php';
     </div>
 
     <!-- Right Panel -->
-    <div class="w-full lg:w-[45%] bg-white flex items-start justify-center p-8 overflow-y-auto">
+    <div class="w-full lg:w-[45%] bg-white flex items-start justify-center p-8 overflow-y-auto relative">
+        <!-- Back to Home Button -->
+        <a href="<?php echo BASE_URL; ?>/index.php" class="absolute top-6 right-8 text-hemo-gray hover:text-hemo-red transition-fast flex items-center gap-2 text-sm font-semibold bg-hemo-light-gray px-3 py-1.5 rounded-lg z-10">
+            <i class="fas fa-home"></i> Home
+        </a>
         <div class="w-full max-w-[480px] py-6">
             <div class="lg:hidden flex items-center gap-3 mb-6">
                 <div class="w-10 h-10 rounded-lg gradient-red flex items-center justify-center">
