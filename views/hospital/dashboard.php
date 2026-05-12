@@ -24,7 +24,7 @@ ob_start();
         </p>
     </div>
     <div class="flex items-center gap-3">
-        <button class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-hemo-red text-white font-semibold text-sm shadow-btn-primary hover:bg-hemo-deep-red hover:shadow-btn-hover hover:-translate-y-px transition-default btn-press">
+        <button onclick="openModal('addRequestModal')" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-hemo-red text-white font-semibold text-sm hover:bg-hemo-deep-red transition-default shadow-button">
             <i class="fas fa-plus"></i> New Blood Request
         </button>
     </div>

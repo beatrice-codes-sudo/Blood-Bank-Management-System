@@ -129,8 +129,38 @@ switch ($page) {
         $hospital->dashboard();
         break;
 
-    // Placeholder pages for hospital
+    // === Hospital Blood Requests ===
     case 'hospital_requests':
+        $hospital = new HospitalController();
+        $hospital->bloodRequests();
+        break;
+
+    case 'hospital_request_view':
+        $hospital = new HospitalController();
+        $hospital->viewRequest();
+        break;
+
+    case 'hospital_request_add':
+        $hospital = new HospitalController();
+        $hospital->addRequest();
+        break;
+
+    case 'hospital_request_edit':
+        $hospital = new HospitalController();
+        $hospital->editRequest();
+        break;
+
+    case 'hospital_request_delete':
+        $hospital = new HospitalController();
+        $hospital->deleteRequest();
+        break;
+
+    case 'hospital_request_history':
+        $hospital = new HospitalController();
+        $hospital->requestHistory();
+        break;
+
+    // Placeholder pages for hospital (remaining)
     case 'hospital_inventory':
     case 'hospital_profile':
         requireRole(ROLE_HOSPITAL);

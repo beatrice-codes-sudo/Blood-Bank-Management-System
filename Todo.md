@@ -30,7 +30,7 @@ The days objective:
  H0SPITAL MANAGER
  On the hospital manager page lets complete the blood request page first then move to inventory page.
 
- BLOOD REQUEST PAGE
+ BLOOD REQUEST PAGE [COMPLETED]
 The hospital manager should be able to create blood requests.The blood request page should display all the blood requests in the system. Each blood request should have a button to view their profile, edit their profile, delete their profile, and a button to view their donation history.
 It should have stats for the blood requests, such as the total number of blood requests, the number of active blood requests, the number of inactive blood requests, the number of blood requests that have been fulfilled, etc.
 Make sure all buttons work and controllers are updated to provide functionality to the page. use the design layout provided in the DesignLayout.md file as a reference for the design.Also have a way to search and filter the blood requests based on their blood type, eligibility status, and donation history. The search and filter should be done in real-time as the user types or selects an option from the dropdown menu. and also ensure that the page is responsive and works on all devices. 
