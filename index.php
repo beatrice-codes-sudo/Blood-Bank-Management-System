@@ -160,6 +160,11 @@ switch ($page) {
         $hospital->requestHistory();
         break;
 
+    case 'hospital_profile_update':
+        $hospital = new HospitalController();
+        $hospital->updateProfile();
+        break;
+
     // Placeholder pages for hospital (remaining)
     case 'hospital_inventory':
     case 'hospital_profile':

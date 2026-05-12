@@ -227,4 +227,47 @@ class HospitalController {
         ]);
         exit;
     }
+
+    /**
+     * Update hospital profile details (POST)
+     */
+    public function updateProfile() {
+        requireRole(ROLE_HOSPITAL);
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirect('hospital_dashboard');
+        }
+
+        $hospital = $this->getMyHospital();
+        if (!$hospital) {
+            redirect('hospital_dashboard', 'Hospital profile not found', 'error');
+        }
+
+        // Validate basic required fields
+        $hospitalName = trim($_POST['hospital_name'] ?? '');
+        $phone        = trim($_POST['phone'] ?? '');
+        $address      = trim($_POST['address'] ?? '');
+        $city         = trim($_POST['city'] ?? '');
+
+        if (!$hospitalName || !$phone || !$address || !$city) {
+            redirect('hospital_dashboard', 'Please fill in all required fields.', 'error');
+        }
+
+        try {
+            $this->hospitalModel->update($hospital['hospital_id'], [
+                'hospital_name'  => $hospitalName,
+                'phone'          => $phone,
+                'email'          => trim($_POST['email'] ?? ''),
+                'address'        => $address,
+                'city'           => $city,
+                'region'         => trim($_POST['region'] ?? ''),
+                'postal_code'    => trim($_POST['postal_code'] ?? ''),
+                'license_number' => trim($_POST['license_number'] ?? ''),
+            ]);
+
+            redirect('hospital_dashboard', 'Hospital profile updated successfully.', 'success');
+        } catch (Exception $e) {
+            redirect('hospital_dashboard', 'Error updating profile: ' . $e->getMessage(), 'error');
+        }
+    }
 }

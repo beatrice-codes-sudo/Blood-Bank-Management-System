@@ -23,11 +23,6 @@ ob_start();
             <?php endif; ?>
         </p>
     </div>
-    <!-- <div class="flex items-center gap-3">
-        <button onclick="openModal('addRequestModal')" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-hemo-red text-white font-semibold text-sm hover:bg-hemo-deep-red transition-default shadow-button">
-            <i class="fas fa-plus"></i> New Blood Request
-        </button>
-    </div> -->
 </div>
 
 <!-- Stats Grid -->
@@ -77,9 +72,25 @@ ob_start();
 <div class="grid lg:grid-cols-3 gap-6 mb-8">
     <!-- Hospital Profile Card -->
     <div class="bg-white rounded-xl shadow-card p-6 card-accent-blue">
-        <div class="flex items-center gap-3 mb-6 pb-4 border-b border-hemo-border">
-            <i class="fas fa-hospital text-hemo-info"></i>
-            <h3 class="text-lg font-semibold text-hemo-navy">Hospital Profile</h3>
+        <div class="flex items-center justify-between mb-6 pb-4 border-b border-hemo-border">
+            <div class="flex items-center gap-3">
+                <i class="fas fa-hospital text-hemo-info"></i>
+                <h3 class="text-lg font-semibold text-hemo-navy">Hospital Profile</h3>
+            </div>
+            <?php if ($hospital): ?>
+            <button onclick="openEditProfileModal(<?php echo htmlspecialchars(json_encode([
+                'hospital_name' => $hospital['hospital_name'],
+                'phone' => $hospital['phone'],
+                'email' => $hospital['email'] ?? $hospital['manager_email'],
+                'address' => $hospital['address'],
+                'city' => $hospital['city'],
+                'region' => $hospital['region'],
+                'postal_code' => $hospital['postal_code'],
+                'license_number' => $hospital['license_number']
+            ])); ?>)" class="p-1.5 rounded-lg bg-blue-50 text-hemo-info hover:bg-blue-100 transition-fast" title="Edit Profile">
+                <i class="fas fa-edit text-sm"></i>
+            </button>
+            <?php endif; ?>
         </div>
         <?php if ($hospital): ?>
         <div class="flex items-start gap-4 mb-6">
@@ -207,6 +218,86 @@ ob_start();
         </table>
     </div>
 </div>
+
+<!-- Edit Profile Modal -->
+<div id="editProfileModal" class="fixed inset-0 bg-hemo-navy/50 backdrop-blur-sm z-[1001] hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col transform scale-95 transition-transform duration-300">
+        <div class="px-6 py-4 border-b border-hemo-border flex items-center justify-between bg-hemo-off-white rounded-t-xl">
+            <h3 class="text-lg font-semibold text-hemo-navy"><i class="fas fa-edit text-hemo-info mr-2"></i> Edit Hospital Profile</h3>
+            <button type="button" onclick="closeEditProfileModal()" class="text-hemo-gray hover:text-hemo-red transition-fast"><i class="fas fa-times text-lg"></i></button>
+        </div>
+        <div class="p-6 overflow-y-auto flex-1">
+            <form id="editProfileForm" action="<?php echo BASE_URL; ?>/index.php?page=hospital_profile_update" method="POST">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-semibold text-hemo-charcoal mb-1">Hospital Name *</label>
+                        <input type="text" name="hospital_name" id="edit_prof_name" required class="w-full px-4 py-2 rounded-lg border-2 border-hemo-border focus:border-hemo-info focus:ring-0 transition-fast outline-none text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-hemo-charcoal mb-1">Phone Number *</label>
+                        <input type="text" name="phone" id="edit_prof_phone" required class="w-full px-4 py-2 rounded-lg border-2 border-hemo-border focus:border-hemo-info focus:ring-0 transition-fast outline-none text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-hemo-charcoal mb-1">Email Address</label>
+                        <input type="email" name="email" id="edit_prof_email" class="w-full px-4 py-2 rounded-lg border-2 border-hemo-border focus:border-hemo-info focus:ring-0 transition-fast outline-none text-sm">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-semibold text-hemo-charcoal mb-1">Street Address *</label>
+                        <input type="text" name="address" id="edit_prof_address" required class="w-full px-4 py-2 rounded-lg border-2 border-hemo-border focus:border-hemo-info focus:ring-0 transition-fast outline-none text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-hemo-charcoal mb-1">City *</label>
+                        <input type="text" name="city" id="edit_prof_city" required class="w-full px-4 py-2 rounded-lg border-2 border-hemo-border focus:border-hemo-info focus:ring-0 transition-fast outline-none text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-hemo-charcoal mb-1">Region</label>
+                        <input type="text" name="region" id="edit_prof_region" class="w-full px-4 py-2 rounded-lg border-2 border-hemo-border focus:border-hemo-info focus:ring-0 transition-fast outline-none text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-hemo-charcoal mb-1">Postal Code</label>
+                        <input type="text" name="postal_code" id="edit_prof_postal" class="w-full px-4 py-2 rounded-lg border-2 border-hemo-border focus:border-hemo-info focus:ring-0 transition-fast outline-none text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-hemo-charcoal mb-1">License Number</label>
+                        <input type="text" name="license_number" id="edit_prof_license" class="w-full px-4 py-2 rounded-lg border-2 border-hemo-border focus:border-hemo-info focus:ring-0 transition-fast outline-none text-sm">
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="px-6 py-4 border-t border-hemo-border bg-hemo-off-white flex justify-end gap-3 rounded-b-xl">
+            <button type="button" onclick="closeEditProfileModal()" class="px-4 py-2 rounded-lg bg-white border border-hemo-border text-hemo-charcoal font-semibold text-sm hover:bg-gray-50 transition-fast">Cancel</button>
+            <button type="submit" form="editProfileForm" class="px-6 py-2 rounded-lg bg-hemo-info text-white font-semibold text-sm hover:bg-blue-600 transition-fast shadow-sm">Save Profile</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function openEditProfileModal(data) {
+    document.getElementById('edit_prof_name').value = data.hospital_name || '';
+    document.getElementById('edit_prof_phone').value = data.phone || '';
+    document.getElementById('edit_prof_email').value = data.email || '';
+    document.getElementById('edit_prof_address').value = data.address || '';
+    document.getElementById('edit_prof_city').value = data.city || '';
+    document.getElementById('edit_prof_region').value = data.region || '';
+    document.getElementById('edit_prof_postal').value = data.postal_code || '';
+    document.getElementById('edit_prof_license').value = data.license_number || '';
+    
+    const modal = document.getElementById('editProfileModal');
+    modal.classList.remove('hidden');
+    void modal.offsetWidth; // trigger reflow
+    modal.classList.remove('opacity-0');
+    modal.querySelector('div').classList.remove('scale-95');
+}
+
+function closeEditProfileModal() {
+    const modal = document.getElementById('editProfileModal');
+    modal.classList.add('opacity-0');
+    modal.querySelector('div').classList.add('scale-95');
+    setTimeout(() => {
+        modal.classList.add('hidden');
+    }, 300);
+}
+</script>
 
 <?php
 $content = ob_get_clean();
