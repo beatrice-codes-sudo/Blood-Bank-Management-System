@@ -71,9 +71,9 @@ ob_start();
 </div>
 
 <!-- Content Grid -->
-<div class="grid lg:grid-cols-3 gap-6 mb-8">
+<div class="grid lg:grid-cols-2 gap-6 mb-8">
     <!-- Donor Profile Card -->
-    <div class="bg-white rounded-xl shadow-card p-6 card-accent-red">
+    <!-- <div class="bg-white rounded-xl shadow-card p-6 card-accent-red">
         <div class="flex items-center gap-3 mb-6 pb-4 border-b border-hemo-border">
             <i class="fas fa-user text-hemo-red"></i>
             <h3 class="text-lg font-semibold text-hemo-navy">My Profile</h3>
@@ -87,10 +87,10 @@ ob_start();
             </div>
             <h4 class="text-lg font-bold text-hemo-navy"><?php echo sanitize($donor['first_name'] . ' ' . $donor['last_name']); ?></h4>
             <p class="text-xs text-hemo-red font-mono mt-1">DNR-<?php echo str_pad($donor['donor_id'], 5, '0', STR_PAD_LEFT); ?></p>
-        </div>
+        </div> -->
 
         <!-- Blood Type Badge -->
-        <?php if ($donor['blood_type']): ?>
+        <!-- <?php if ($donor['blood_type']): ?>
         <div class="flex justify-center mb-6">
             <div class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-hemo-red text-white">
                 <i class="fas fa-droplet"></i>
@@ -135,17 +135,17 @@ ob_start();
             <p>Profile not found</p>
         </div>
         <?php endif; ?>
-    </div>
+    </div> -->
 
     <!-- Impact & Next Steps -->
-    <div class="lg:col-span-2 space-y-6">
+    
         <!-- Impact Card -->
         <div class="bg-white rounded-xl shadow-card p-6 card-accent-gold">
             <div class="flex items-center gap-3 mb-6 pb-4 border-b border-hemo-border">
                 <i class="fas fa-award text-hemo-gold"></i>
                 <h3 class="text-lg font-semibold text-hemo-navy">Your Impact</h3>
             </div>
-            <div class="grid sm:grid-cols-3 gap-6">
+    
                 <div class="text-center p-6 bg-hemo-off-white rounded-xl">
                     <div class="w-14 h-14 rounded-xl bg-hemo-light-red flex items-center justify-center mx-auto mb-3">
                         <i class="fas fa-heart text-hemo-red text-xl"></i>
@@ -167,7 +167,7 @@ ob_start();
                     <p class="text-2xl font-bold text-hemo-navy"><?php echo $stats['total_donations']; ?></p>
                     <p class="text-xs text-hemo-gray mt-1">Donations Complete</p>
                 </div>
-            </div>
+        
         </div>
 
         <!-- Next Steps -->
@@ -176,7 +176,7 @@ ob_start();
                 <i class="fas fa-lightbulb text-hemo-success"></i>
                 <h3 class="text-lg font-semibold text-hemo-navy">Quick Actions</h3>
             </div>
-            <div class="grid sm:grid-cols-2 gap-3">
+            
                 <a href="<?php echo BASE_URL; ?>/index.php?page=donor_appointments" 
                    class="flex items-center gap-4 p-4 rounded-xl hover:bg-hemo-light-red transition-fast group">
                     <div class="w-10 h-10 rounded-lg bg-hemo-light-red flex items-center justify-center flex-shrink-0 group-hover:bg-hemo-red group-hover:text-white transition-fast">
@@ -216,13 +216,13 @@ ob_start();
                         <p class="text-xs text-hemo-gray">Get donation certificate</p>
                     </div>
                 </a>
-            </div>
+            
         </div>
-    </div>
+
 </div>
 
 <!-- Donation History Table -->
-<div class="bg-white rounded-xl shadow-card">
+<!-- <div class="bg-white rounded-xl shadow-card">
     <div class="p-6 border-b border-hemo-border flex items-center justify-between">
         <div class="flex items-center gap-3">
             <i class="fas fa-clock-rotate-left text-hemo-red"></i>
@@ -281,7 +281,7 @@ ob_start();
             </tbody>
         </table>
     </div>
-</div>
+</div> -->
 
 <?php
 $content = ob_get_clean();

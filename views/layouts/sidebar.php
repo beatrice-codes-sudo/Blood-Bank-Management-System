@@ -83,7 +83,7 @@ $userInitials = strtoupper(substr($_SESSION['first_name'] ?? 'U', 0, 1) . substr
 
         <?php elseif ($roleId == ROLE_DONOR): ?>
             <!-- Donor Menu -->
-            <p class="text-xs font-semibold text-hemo-gray uppercase tracking-widest px-4 mb-3">Main Menu</p>
+            <!-- <p class="text-xs font-semibold text-hemo-gray uppercase tracking-widest px-4 mb-3">Main Menu</p> -->
             <a href="<?php echo BASE_URL; ?>/index.php?page=donor_dashboard" 
                class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-fast <?php echo $currentPage === 'donor_dashboard' ? 'active' : 'text-hemo-charcoal'; ?>">
                 <i class="fas fa-chart-pie w-5 text-center"></i>
