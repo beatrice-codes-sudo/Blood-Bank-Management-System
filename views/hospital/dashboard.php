@@ -23,11 +23,11 @@ ob_start();
             <?php endif; ?>
         </p>
     </div>
-    <div class="flex items-center gap-3">
+    <!-- <div class="flex items-center gap-3">
         <button onclick="openModal('addRequestModal')" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-hemo-red text-white font-semibold text-sm hover:bg-hemo-deep-red transition-default shadow-button">
             <i class="fas fa-plus"></i> New Blood Request
         </button>
-    </div>
+    </div> -->
 </div>
 
 <!-- Stats Grid -->
@@ -210,5 +210,5 @@ ob_start();
 
 <?php
 $content = ob_get_clean();
-require_once __DIR__ . '/../layouts/dashboard_layout.php';
+require_once __DIR__ . '/../layouts/hospital_layout.php';
 ?>

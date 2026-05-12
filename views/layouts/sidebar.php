@@ -81,34 +81,6 @@ $userInitials = strtoupper(substr($_SESSION['first_name'] ?? 'U', 0, 1) . substr
                 <span>Audit Logs</span>
             </a>
 
-        <?php elseif ($roleId == ROLE_HOSPITAL): ?>
-            <!-- Hospital Manager Menu -->
-            <p class="text-xs font-semibold text-hemo-gray uppercase tracking-widest px-4 mb-3">Main Menu</p>
-            <a href="<?php echo BASE_URL; ?>/index.php?page=hospital_dashboard" 
-               class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-fast <?php echo $currentPage === 'hospital_dashboard' ? 'active' : 'text-hemo-charcoal'; ?>">
-                <i class="fas fa-chart-pie w-5 text-center"></i>
-                <span>Dashboard</span>
-            </a>
-
-            <p class="text-xs font-semibold text-hemo-gray uppercase tracking-widest px-4 mb-3 mt-6">Operations</p>
-            <a href="<?php echo BASE_URL; ?>/index.php?page=hospital_requests" 
-               class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-fast <?php echo $currentPage === 'hospital_requests' ? 'active' : 'text-hemo-charcoal'; ?>">
-                <i class="fas fa-clipboard-list w-5 text-center"></i>
-                <span>Blood Requests</span>
-            </a>
-            <a href="<?php echo BASE_URL; ?>/index.php?page=hospital_inventory" 
-               class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-fast <?php echo $currentPage === 'hospital_inventory' ? 'active' : 'text-hemo-charcoal'; ?>">
-                <i class="fas fa-droplet w-5 text-center"></i>
-                <span>Blood Availability</span>
-            </a>
-
-            <p class="text-xs font-semibold text-hemo-gray uppercase tracking-widest px-4 mb-3 mt-6">Settings</p>
-            <a href="<?php echo BASE_URL; ?>/index.php?page=hospital_profile" 
-               class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-fast <?php echo $currentPage === 'hospital_profile' ? 'active' : 'text-hemo-charcoal'; ?>">
-                <i class="fas fa-hospital w-5 text-center"></i>
-                <span>Hospital Profile</span>
-            </a>
-
         <?php elseif ($roleId == ROLE_DONOR): ?>
             <!-- Donor Menu -->
             <p class="text-xs font-semibold text-hemo-gray uppercase tracking-widest px-4 mb-3">Main Menu</p>

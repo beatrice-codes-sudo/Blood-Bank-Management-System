@@ -19,52 +19,6 @@ ob_start();
     </div>
 </div>
 
-<!-- Stats Grid -->
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-    <!-- Total Requests -->
-    <div class="stat-card bg-white rounded-xl shadow-card p-5 border-l-4 border-hemo-red transition-default cursor-default">
-        <div class="flex items-center justify-between mb-4">
-            <div class="w-12 h-12 rounded-xl bg-hemo-light-red flex items-center justify-center">
-                <i class="fas fa-clipboard-list text-hemo-red text-lg"></i>
-            </div>
-        </div>
-        <p class="text-3xl font-bold text-hemo-navy"><?php echo number_format($stats['total'] ?? 0); ?></p>
-        <p class="text-sm text-hemo-gray mt-1">Total Requests</p>
-    </div>
-
-    <!-- Pending Requests -->
-    <div class="stat-card bg-white rounded-xl shadow-card p-5 border-l-4 border-amber-500 transition-default cursor-default">
-        <div class="flex items-center justify-between mb-4">
-            <div class="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center">
-                <i class="fas fa-clock text-amber-500 text-lg"></i>
-            </div>
-        </div>
-        <p class="text-3xl font-bold text-hemo-navy"><?php echo number_format($stats['pending'] ?? 0); ?></p>
-        <p class="text-sm text-hemo-gray mt-1">Pending Requests</p>
-    </div>
-
-    <!-- Fulfilled Requests -->
-    <div class="stat-card bg-white rounded-xl shadow-card p-5 border-l-4 border-hemo-success transition-default cursor-default">
-        <div class="flex items-center justify-between mb-4">
-            <div class="w-12 h-12 rounded-xl bg-green-50 flex items-center justify-center">
-                <i class="fas fa-check-circle text-hemo-success text-lg"></i>
-            </div>
-        </div>
-        <p class="text-3xl font-bold text-hemo-navy"><?php echo number_format($stats['fulfilled'] ?? 0); ?></p>
-        <p class="text-sm text-hemo-gray mt-1">Fulfilled Requests</p>
-    </div>
-
-    <!-- Emergency Requests -->
-    <div class="stat-card bg-white rounded-xl shadow-card p-5 border-l-4 border-hemo-warning transition-default cursor-default">
-        <div class="flex items-center justify-between mb-4">
-            <div class="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center">
-                <i class="fas fa-ambulance text-hemo-warning text-lg"></i>
-            </div>
-        </div>
-        <p class="text-3xl font-bold text-hemo-navy"><?php echo number_format($stats['emergency'] ?? 0); ?></p>
-        <p class="text-sm text-hemo-gray mt-1">Emergency Urgency</p>
-    </div>
-</div>
 
 <!-- Filters & Table -->
 <div class="bg-white rounded-xl shadow-card overflow-hidden">
@@ -567,5 +521,5 @@ ob_start();
 
 <?php
 $content = ob_get_clean();
-require_once __DIR__ . '/../layouts/dashboard_layout.php';
+require_once __DIR__ . '/../layouts/hospital_layout.php';
 ?>

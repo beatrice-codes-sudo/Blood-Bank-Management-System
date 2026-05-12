@@ -179,7 +179,7 @@ switch ($page) {
                 </div>
               </div>';
         $content = ob_get_clean();
-        require_once __DIR__ . '/views/layouts/dashboard_layout.php';
+        require_once __DIR__ . '/views/layouts/hospital_layout.php';
         break;
 
     // === Donor Dashboard ===
