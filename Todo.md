@@ -35,3 +35,13 @@ The hospital manager should be able to create blood requests.The blood request p
 It should have stats for the blood requests, such as the total number of blood requests, the number of active blood requests, the number of inactive blood requests, the number of blood requests that have been fulfilled, etc.
 Make sure all buttons work and controllers are updated to provide functionality to the page. use the design layout provided in the DesignLayout.md file as a reference for the design.Also have a way to search and filter the blood requests based on their blood type, eligibility status, and donation history. The search and filter should be done in real-time as the user types or selects an option from the dropdown menu. and also ensure that the page is responsive and works on all devices. 
 Also have a button to add a new blood request at the top right of the page, which should open a modal to add a new blood request. The modal should have the same fields as the blood request table.
+
+DONORS SIDE.
+on the dashboard make sure the schedule button takes you to the appointments page.
+make sure the appointments page is implemented correctly with a working calendar.
+the calendar should allow you to select a date and time for the appointment.
+the appointment should be booked with a hospital.
+(Only Donors can reschedule not hospital managers, This should be implimented in the appointments.php make sure all the links/routing for this functionality works and update their respective controllers and models as well)
+also the donors history should be implemented
+and the profile page implemented as well.
+the donr should be able to edit their profile and save the changes.

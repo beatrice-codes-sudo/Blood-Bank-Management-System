@@ -193,27 +193,42 @@ switch ($page) {
         $donorCtrl->dashboard();
         break;
 
-    // Placeholder pages for donor
-    case 'donor_history':
+    // === Donor Appointments ===
     case 'donor_appointments':
+        $donorCtrl = new DonorController();
+        $donorCtrl->appointments();
+        break;
+
+    case 'donor_appointment_add':
+        $donorCtrl = new DonorController();
+        $donorCtrl->addAppointment();
+        break;
+
+    case 'donor_appointment_reschedule':
+        $donorCtrl = new DonorController();
+        $donorCtrl->rescheduleAppointment();
+        break;
+
+    case 'donor_appointment_cancel':
+        $donorCtrl = new DonorController();
+        $donorCtrl->cancelAppointment();
+        break;
+
+    // === Donor History ===
+    case 'donor_history':
+        $donorCtrl = new DonorController();
+        $donorCtrl->donationHistory();
+        break;
+
+    // === Donor Profile ===
     case 'donor_profile':
-        requireRole(ROLE_DONOR);
-        $pageTitle = ucwords(str_replace('donor_', '', $page));
-        ob_start();
-        echo '<div class="flex items-center justify-center min-h-[60vh]">
-                <div class="text-center">
-                    <div class="w-20 h-20 rounded-2xl bg-hemo-light-red flex items-center justify-center mx-auto mb-6">
-                        <i class="fas fa-tools text-hemo-red text-3xl"></i>
-                    </div>
-                    <h2 class="font-display text-2xl font-bold text-hemo-navy mb-2">Coming Soon</h2>
-                    <p class="text-hemo-charcoal">The <strong>' . sanitize($pageTitle) . '</strong> module is under development.</p>
-                    <a href="' . BASE_URL . '/index.php?page=donor_dashboard" class="inline-flex items-center gap-2 mt-6 px-6 py-3 rounded-lg bg-hemo-red text-white font-semibold text-sm hover:bg-hemo-deep-red transition-default btn-press">
-                        <i class="fas fa-arrow-left"></i> Back to Dashboard
-                    </a>
-                </div>
-              </div>';
-        $content = ob_get_clean();
-        require_once __DIR__ . '/views/layouts/dashboard_layout.php';
+        $donorCtrl = new DonorController();
+        $donorCtrl->profile();
+        break;
+
+    case 'donor_profile_update':
+        $donorCtrl = new DonorController();
+        $donorCtrl->updateProfile();
         break;
 
     // === Unauthorized ===

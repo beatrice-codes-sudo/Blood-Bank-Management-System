@@ -17,9 +17,9 @@ ob_start();
         <p class="text-hemo-charcoal mt-1">Welcome back, <span class="font-semibold text-hemo-red"><?php echo sanitize($_SESSION['first_name'] ?? 'Donor'); ?></span>. Track your contributions.</p>
     </div>
     <div class="flex items-center gap-3">
-        <button class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-hemo-red text-white font-semibold text-sm shadow-btn-primary hover:bg-hemo-deep-red hover:shadow-btn-hover hover:-translate-y-px transition-default btn-press">
+        <a href="<?php echo BASE_URL; ?>/index.php?page=donor_appointments" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-hemo-red text-white font-semibold text-sm shadow-btn-primary hover:bg-hemo-deep-red hover:shadow-btn-hover hover:-translate-y-px transition-default btn-press">
             <i class="fas fa-calendar-plus"></i> Schedule Donation
-        </button>
+        </a>
     </div>
 </div>
 

@@ -125,7 +125,7 @@ class DonorModel {
     }
 
     /**
-     * Update donor profile
+     * Update donor profile (donors table + users table for email/phone)
      */
     public function update($donorId, $data) {
         $sql = "UPDATE donors SET 
@@ -143,6 +143,19 @@ class DonorModel {
             'gender'        => $data['gender'] ?? null,
             'address'       => $data['address'] ?? null,
             'city'          => $data['city'] ?? null,
+        ]);
+    }
+
+    /**
+     * Update user contact info (email, phone) from profile edit
+     */
+    public function updateUserContact($userId, $email, $phone) {
+        $sql = "UPDATE users SET email = :email, phone = :phone WHERE user_id = :user_id";
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute([
+            'user_id' => $userId,
+            'email'   => $email,
+            'phone'   => $phone,
         ]);
     }
 
@@ -213,5 +226,161 @@ class DonorModel {
     public function updateEligibility($donorId, $status) {
         $stmt = $this->db->prepare("UPDATE donors SET eligibility_status = :status WHERE donor_id = :donor_id");
         return $stmt->execute(['status' => $status, 'donor_id' => $donorId]);
+    }
+
+    // ================================================================
+    // Appointment Management
+    // ================================================================
+
+    /**
+     * Get all appointments for a donor (joined with hospital info)
+     */
+    public function getAppointments($donorId) {
+        $sql = "SELECT a.*, h.hospital_name, h.address as hospital_address, h.city as hospital_city
+                FROM appointments a
+                LEFT JOIN hospitals h ON a.hospital_id = h.hospital_id
+                WHERE a.donor_id = :donor_id
+                ORDER BY a.appointment_date DESC, a.appointment_time DESC";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['donor_id' => $donorId]);
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Get a single appointment by ID (scoped to donor)
+     */
+    public function getAppointmentById($appointmentId, $donorId) {
+        $sql = "SELECT a.*, h.hospital_name, h.address as hospital_address
+                FROM appointments a
+                LEFT JOIN hospitals h ON a.hospital_id = h.hospital_id
+                WHERE a.appointment_id = :appointment_id AND a.donor_id = :donor_id";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([
+            'appointment_id' => $appointmentId,
+            'donor_id'       => $donorId,
+        ]);
+        return $stmt->fetch();
+    }
+
+    /**
+     * Create a new appointment
+     */
+    public function createAppointment($data) {
+        $sql = "INSERT INTO appointments (donor_id, hospital_id, appointment_date, appointment_time, purpose, status, notes, created_by)
+                VALUES (:donor_id, :hospital_id, :appointment_date, :appointment_time, :purpose, 'Scheduled', :notes, :created_by)";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([
+            'donor_id'         => $data['donor_id'],
+            'hospital_id'      => $data['hospital_id'] ?? null,
+            'appointment_date' => $data['appointment_date'],
+            'appointment_time' => $data['appointment_time'],
+            'purpose'          => $data['purpose'] ?? 'Donation',
+            'notes'            => $data['notes'] ?? null,
+            'created_by'       => $data['created_by'] ?? null,
+        ]);
+        return $this->db->lastInsertId();
+    }
+
+    /**
+     * Reschedule an appointment (donor-only: update date, time, hospital)
+     */
+    public function rescheduleAppointment($appointmentId, $donorId, $data) {
+        $sql = "UPDATE appointments SET
+                hospital_id = :hospital_id,
+                appointment_date = :appointment_date,
+                appointment_time = :appointment_time,
+                purpose = :purpose,
+                notes = :notes
+                WHERE appointment_id = :appointment_id
+                AND donor_id = :donor_id
+                AND status = 'Scheduled'";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([
+            'appointment_id'   => $appointmentId,
+            'donor_id'         => $donorId,
+            'hospital_id'      => $data['hospital_id'] ?? null,
+            'appointment_date' => $data['appointment_date'],
+            'appointment_time' => $data['appointment_time'],
+            'purpose'          => $data['purpose'] ?? 'Donation',
+            'notes'            => $data['notes'] ?? null,
+        ]);
+        return $stmt->rowCount() > 0;
+    }
+
+    /**
+     * Cancel an appointment (donor-only, only if Scheduled)
+     */
+    public function cancelAppointment($appointmentId, $donorId) {
+        $sql = "UPDATE appointments SET status = 'Cancelled'
+                WHERE appointment_id = :appointment_id
+                AND donor_id = :donor_id
+                AND status = 'Scheduled'";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([
+            'appointment_id' => $appointmentId,
+            'donor_id'       => $donorId,
+        ]);
+        return $stmt->rowCount() > 0;
+    }
+
+    /**
+     * Get appointment statistics for a donor
+     */
+    public function getAppointmentStats($donorId) {
+        $stats = [];
+
+        $stmt = $this->db->prepare("SELECT COUNT(*) as total FROM appointments WHERE donor_id = :did");
+        $stmt->execute(['did' => $donorId]);
+        $stats['total'] = $stmt->fetch()['total'];
+
+        $stmt = $this->db->prepare("SELECT COUNT(*) as total FROM appointments WHERE donor_id = :did AND status = 'Scheduled'");
+        $stmt->execute(['did' => $donorId]);
+        $stats['scheduled'] = $stmt->fetch()['total'];
+
+        $stmt = $this->db->prepare("SELECT COUNT(*) as total FROM appointments WHERE donor_id = :did AND status = 'Completed'");
+        $stmt->execute(['did' => $donorId]);
+        $stats['completed'] = $stmt->fetch()['total'];
+
+        $stmt = $this->db->prepare("SELECT COUNT(*) as total FROM appointments WHERE donor_id = :did AND status = 'Cancelled'");
+        $stmt->execute(['did' => $donorId]);
+        $stats['cancelled'] = $stmt->fetch()['total'];
+
+        $stmt = $this->db->prepare("SELECT COUNT(*) as total FROM appointments WHERE donor_id = :did AND status = 'No Show'");
+        $stmt->execute(['did' => $donorId]);
+        $stats['no_show'] = $stmt->fetch()['total'];
+
+        return $stats;
+    }
+
+    /**
+     * Get all active hospitals (for appointment booking dropdown)
+     */
+    public function getHospitalsList() {
+        $sql = "SELECT h.hospital_id, h.hospital_name, h.address, h.city
+                FROM hospitals h
+                WHERE h.is_active = 1
+                ORDER BY h.hospital_name ASC";
+        $stmt = $this->db->query($sql);
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Get appointments for a specific month (for calendar rendering)
+     */
+    public function getAppointmentsByMonth($donorId, $year, $month) {
+        $sql = "SELECT a.*, h.hospital_name
+                FROM appointments a
+                LEFT JOIN hospitals h ON a.hospital_id = h.hospital_id
+                WHERE a.donor_id = :donor_id
+                AND YEAR(a.appointment_date) = :year
+                AND MONTH(a.appointment_date) = :month
+                ORDER BY a.appointment_date ASC, a.appointment_time ASC";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([
+            'donor_id' => $donorId,
+            'year'     => $year,
+            'month'    => $month,
+        ]);
+        return $stmt->fetchAll();
     }
 }
