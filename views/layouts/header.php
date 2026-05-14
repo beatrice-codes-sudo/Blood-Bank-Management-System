@@ -79,12 +79,12 @@
         }
 
         /* Card left border accent */
-        .card-accent-red { border-left: 4px solid #C41E3A; }
+        /* .card-accent-red { border-left: 4px solid #C41E3A; }
         .card-accent-amber { border-left: 4px solid #F59E0B; }
         .card-accent-deep-red { border-left: 4px solid #8B0000; }
         .card-accent-green { border-left: 4px solid #059669; }
         .card-accent-gold { border-left: 4px solid #D4AF37; }
-        .card-accent-blue { border-left: 4px solid #3B82F6; }
+        .card-accent-blue { border-left: 4px solid #3B82F6; } */
 
         /* Gradient backgrounds */
         .gradient-red { background: linear-gradient(135deg, #C41E3A 0%, #8B0000 100%); }
