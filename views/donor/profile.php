@@ -41,7 +41,7 @@ ob_start();
         <!-- Info -->
         <div class="flex-1 min-w-0">
             <h2 class="text-xl font-bold text-hemo-navy"><?php echo sanitize(($donor['first_name'] ?? '') . ' ' . ($donor['last_name'] ?? '')); ?></h2>
-            <p class="text-sm font-mono text-hemo-red mt-1">DONOR-<?php echo str_pad($donor['donor_id'] ?? 0, 4, '0', STR_PAD_LEFT); ?></p>
+            <p class="text-sm font-mono text-hemo-red mt-1">DONOR-<?php echo str_pad($donor['user_id'] ?? 0, 4, '0', STR_PAD_LEFT); ?></p>
             <div class="flex flex-wrap items-center gap-4 mt-3">
                 <?php if (!empty($donor['blood_type'])): ?>
                 <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-hemo-red text-white text-sm font-bold">
@@ -110,11 +110,11 @@ ob_start();
             <!-- Blood Type -->
             <div>
                 <label class="block text-sm font-semibold text-hemo-navy mb-1.5">Blood Type</label>
-                <select name="blood_type_id" class="w-full h-11 px-4 rounded-lg border-2 border-hemo-border text-sm">
+                <select name="blood_type" class="w-full h-11 px-4 rounded-lg border-2 border-hemo-border text-sm">
                     <option value="">Select blood type</option>
                     <?php foreach ($bloodTypes as $bt): ?>
-                    <option value="<?php echo $bt['blood_type_id']; ?>" <?php echo ($donor['blood_type_id'] ?? '') == $bt['blood_type_id'] ? 'selected' : ''; ?>>
-                        <?php echo sanitize($bt['type_name']); ?>
+                    <option value="<?php echo sanitize($bt); ?>" <?php echo ($donor['blood_type'] ?? '') === $bt ? 'selected' : ''; ?>>
+                        <?php echo sanitize($bt); ?>
                     </option>
                     <?php endforeach; ?>
                 </select>

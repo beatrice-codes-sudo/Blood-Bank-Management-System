@@ -2,6 +2,7 @@
 /**
  * User Model
  * Handles user authentication and CRUD operations
+ * Post-consolidation: absorbs donor/staff fields directly
  */
 class User {
     private $db;
@@ -11,22 +12,30 @@ class User {
     }
 
     /**
-     * Register a new user
+     * Register a new user (includes donor/staff fields if applicable)
      */
     public function register($data) {
-        $sql = "INSERT INTO users (role_id, username, email, password_hash, first_name, last_name, phone, is_active)
-                VALUES (:role_id, :username, :email, :password_hash, :first_name, :last_name, :phone, :is_active)";
+        $sql = "INSERT INTO users (role, username, email, password_hash, first_name, last_name, phone, is_active,
+                    blood_type, date_of_birth, gender, address, city, eligibility_status)
+                VALUES (:role, :username, :email, :password_hash, :first_name, :last_name, :phone, :is_active,
+                    :blood_type, :date_of_birth, :gender, :address, :city, :eligibility_status)";
         
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
-            'role_id'       => $data['role_id'],
-            'username'      => $data['username'],
-            'email'         => $data['email'],
-            'password_hash' => password_hash($data['password'], PASSWORD_BCRYPT),
-            'first_name'    => $data['first_name'],
-            'last_name'     => $data['last_name'],
-            'phone'         => $data['phone'] ?? null,
-            'is_active'     => $data['is_active'] ?? 1,
+            'role'               => $data['role'],
+            'username'           => $data['username'],
+            'email'              => $data['email'],
+            'password_hash'      => password_hash($data['password'], PASSWORD_BCRYPT),
+            'first_name'         => $data['first_name'],
+            'last_name'          => $data['last_name'],
+            'phone'              => $data['phone'] ?? null,
+            'is_active'          => $data['is_active'] ?? 1,
+            'blood_type'         => $data['blood_type'] ?? null,
+            'date_of_birth'      => $data['date_of_birth'] ?? null,
+            'gender'             => $data['gender'] ?? null,
+            'address'            => $data['address'] ?? null,
+            'city'               => $data['city'] ?? null,
+            'eligibility_status' => $data['eligibility_status'] ?? 'Eligible',
         ]);
 
         return $this->db->lastInsertId();
@@ -36,10 +45,8 @@ class User {
      * Authenticate user login
      */
     public function login($email, $password) {
-        $sql = "SELECT u.*, r.role_name 
-                FROM users u 
-                JOIN roles r ON u.role_id = r.role_id 
-                WHERE u.email = :email AND u.is_active = 1";
+        $sql = "SELECT * FROM users
+                WHERE email = :email AND is_active = 1";
         
         $stmt = $this->db->prepare($sql);
         $stmt->execute(['email' => $email]);
@@ -76,7 +83,7 @@ class User {
      * Find user by ID
      */
     public function findById($id) {
-        $stmt = $this->db->prepare("SELECT u.*, r.role_name FROM users u JOIN roles r ON u.role_id = r.role_id WHERE u.user_id = :id");
+        $stmt = $this->db->prepare("SELECT * FROM users WHERE user_id = :id");
         $stmt->execute(['id' => $id]);
         return $stmt->fetch();
     }
@@ -86,9 +93,8 @@ class User {
      */
     public function getAll($limit = 50, $offset = 0) {
         $stmt = $this->db->prepare(
-            "SELECT u.*, r.role_name FROM users u 
-             JOIN roles r ON u.role_id = r.role_id 
-             ORDER BY u.created_at DESC 
+            "SELECT * FROM users
+             ORDER BY created_at DESC
              LIMIT :limit OFFSET :offset"
         );
         $stmt->bindValue('limit', (int)$limit, PDO::PARAM_INT);
@@ -108,9 +114,9 @@ class User {
     /**
      * Count users by role
      */
-    public function countByRole($roleId) {
-        $stmt = $this->db->prepare("SELECT COUNT(*) as total FROM users WHERE role_id = :role_id AND is_active = 1");
-        $stmt->execute(['role_id' => $roleId]);
+    public function countByRole($role) {
+        $stmt = $this->db->prepare("SELECT COUNT(*) as total FROM users WHERE role = :role AND is_active = 1");
+        $stmt->execute(['role' => $role]);
         return $stmt->fetch()['total'];
     }
 
@@ -135,9 +141,8 @@ class User {
      */
     public function getRecentRegistrations($limit = 10) {
         $stmt = $this->db->prepare(
-            "SELECT u.*, r.role_name FROM users u 
-             JOIN roles r ON u.role_id = r.role_id 
-             ORDER BY u.created_at DESC 
+            "SELECT * FROM users
+             ORDER BY created_at DESC
              LIMIT :limit"
         );
         $stmt->bindValue('limit', (int)$limit, PDO::PARAM_INT);

@@ -132,12 +132,12 @@ require_once __DIR__ . '/../layouts/header.php';
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-semibold text-hemo-navy mb-1.5">Blood Type <span class="text-hemo-red">*</span></label>
-                        <select name="blood_type_id" id="reg-blood-type" required
+                        <select name="blood_type" id="reg-blood-type" required
                                 class="w-full h-[44px] border-2 border-hemo-border rounded-lg px-4 text-sm text-hemo-navy appearance-none bg-white transition-fast">
                             <option value="">Select type</option>
                             <?php if (isset($bloodTypes)): foreach ($bloodTypes as $bt): ?>
-                                <option value="<?php echo $bt['blood_type_id']; ?>" <?php echo ($oldInput['blood_type_id'] ?? '') == $bt['blood_type_id'] ? 'selected' : ''; ?>>
-                                    <?php echo sanitize($bt['type_name']); ?>
+                                <option value="<?php echo sanitize($bt); ?>" <?php echo ($oldInput['blood_type'] ?? '') === $bt ? 'selected' : ''; ?>>
+                                    <?php echo sanitize($bt); ?>
                                 </option>
                             <?php endforeach; endif; ?>
                         </select>

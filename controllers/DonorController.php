@@ -2,6 +2,7 @@
 /**
  * Donor Controller
  * Handles donor dashboard, appointments, history, and profile
+ * Post-consolidation: user_id IS the donor ID, no separate donors table
  */
 class DonorController {
     private $donorModel;
@@ -16,12 +17,13 @@ class DonorController {
     public function dashboard() {
         requireRole(ROLE_DONOR);
 
-        $donor = $this->donorModel->findByUserId($_SESSION['user_id']);
+        $userId = $_SESSION['user_id'];
+        $donor = $this->donorModel->findByUserId($userId);
         
         $data = [
             'donor'     => $donor,
-            'stats'     => $donor ? $this->donorModel->getStats($donor['donor_id']) : ['total_donations' => 0, 'last_donation_date' => null, 'total_volume_ml' => 0],
-            'donations' => $donor ? $this->donorModel->getDonationHistory($donor['donor_id']) : [],
+            'stats'     => $donor ? $this->donorModel->getStats($userId) : ['total_donations' => 0, 'last_donation_date' => null, 'total_volume_ml' => 0],
+            'donations' => $donor ? $this->donorModel->getDonationHistory($userId) : [],
         ];
 
         require_once __DIR__ . '/../views/donor/dashboard.php';
@@ -37,15 +39,14 @@ class DonorController {
     public function appointments() {
         requireRole(ROLE_DONOR);
 
-        $donor = $this->donorModel->findByUserId($_SESSION['user_id']);
+        $userId = $_SESSION['user_id'];
+        $donor = $this->donorModel->findByUserId($userId);
         if (!$donor) { redirect('donor_dashboard', 'Donor profile not found.', 'error'); }
-
-        $donorId = $donor['donor_id'];
 
         $data = [
             'donor'        => $donor,
-            'appointments' => $this->donorModel->getAppointments($donorId),
-            'stats'        => $this->donorModel->getAppointmentStats($donorId),
+            'appointments' => $this->donorModel->getAppointments($userId),
+            'stats'        => $this->donorModel->getAppointmentStats($userId),
             'hospitals'    => $this->donorModel->getHospitalsList(),
         ];
 
@@ -62,7 +63,8 @@ class DonorController {
             redirect('donor_appointments');
         }
 
-        $donor = $this->donorModel->findByUserId($_SESSION['user_id']);
+        $userId = $_SESSION['user_id'];
+        $donor = $this->donorModel->findByUserId($userId);
         if (!$donor) { redirect('donor_dashboard', 'Donor profile not found.', 'error'); }
 
         $appointmentDate = trim($_POST['appointment_date'] ?? '');
@@ -82,13 +84,13 @@ class DonorController {
         }
 
         $result = $this->donorModel->createAppointment([
-            'donor_id'         => $donor['donor_id'],
+            'donor_id'         => $userId,
             'hospital_id'      => $hospitalId,
             'appointment_date' => $appointmentDate,
             'appointment_time' => $appointmentTime,
             'purpose'          => $purpose,
             'notes'            => $notes,
-            'created_by'       => $_SESSION['user_id'],
+            'created_by'       => $userId,
         ]);
 
         if ($result) {
@@ -108,7 +110,8 @@ class DonorController {
             redirect('donor_appointments');
         }
 
-        $donor = $this->donorModel->findByUserId($_SESSION['user_id']);
+        $userId = $_SESSION['user_id'];
+        $donor = $this->donorModel->findByUserId($userId);
         if (!$donor) { redirect('donor_dashboard', 'Donor profile not found.', 'error'); }
 
         $appointmentId   = intval($_POST['appointment_id'] ?? 0);
@@ -126,7 +129,7 @@ class DonorController {
             redirect('donor_appointments', 'Cannot reschedule to a past date.', 'error');
         }
 
-        $result = $this->donorModel->rescheduleAppointment($appointmentId, $donor['donor_id'], [
+        $result = $this->donorModel->rescheduleAppointment($appointmentId, $userId, [
             'hospital_id'      => $hospitalId,
             'appointment_date' => $appointmentDate,
             'appointment_time' => $appointmentTime,
@@ -151,7 +154,8 @@ class DonorController {
             redirect('donor_appointments');
         }
 
-        $donor = $this->donorModel->findByUserId($_SESSION['user_id']);
+        $userId = $_SESSION['user_id'];
+        $donor = $this->donorModel->findByUserId($userId);
         if (!$donor) { redirect('donor_dashboard', 'Donor profile not found.', 'error'); }
 
         $appointmentId = intval($_POST['appointment_id'] ?? 0);
@@ -160,7 +164,7 @@ class DonorController {
             redirect('donor_appointments', 'Invalid appointment.', 'error');
         }
 
-        $result = $this->donorModel->cancelAppointment($appointmentId, $donor['donor_id']);
+        $result = $this->donorModel->cancelAppointment($appointmentId, $userId);
 
         if ($result) {
             redirect('donor_appointments', 'Appointment cancelled.', 'success');
@@ -179,13 +183,14 @@ class DonorController {
     public function donationHistory() {
         requireRole(ROLE_DONOR);
 
-        $donor = $this->donorModel->findByUserId($_SESSION['user_id']);
+        $userId = $_SESSION['user_id'];
+        $donor = $this->donorModel->findByUserId($userId);
         if (!$donor) { redirect('donor_dashboard', 'Donor profile not found.', 'error'); }
 
         $data = [
             'donor'     => $donor,
-            'stats'     => $this->donorModel->getStats($donor['donor_id']),
-            'donations' => $this->donorModel->getDonationHistory($donor['donor_id']),
+            'stats'     => $this->donorModel->getStats($userId),
+            'donations' => $this->donorModel->getDonationHistory($userId),
         ];
 
         require_once __DIR__ . '/../views/donor/donation_history.php';
@@ -201,13 +206,14 @@ class DonorController {
     public function profile() {
         requireRole(ROLE_DONOR);
 
-        $donor = $this->donorModel->findByUserId($_SESSION['user_id']);
+        $userId = $_SESSION['user_id'];
+        $donor = $this->donorModel->findByUserId($userId);
         if (!$donor) { redirect('donor_dashboard', 'Donor profile not found.', 'error'); }
 
         $data = [
             'donor'      => $donor,
-            'stats'      => $this->donorModel->getStats($donor['donor_id']),
-            'bloodTypes' => $this->donorModel->getBloodTypes(),
+            'stats'      => $this->donorModel->getStats($userId),
+            'bloodTypes' => BLOOD_TYPES,
         ];
 
         require_once __DIR__ . '/../views/donor/profile.php';
@@ -215,6 +221,7 @@ class DonorController {
 
     /**
      * Update profile (POST)
+     * Post-consolidation: single UPDATE on users table
      */
     public function updateProfile() {
         requireRole(ROLE_DONOR);
@@ -223,14 +230,15 @@ class DonorController {
             redirect('donor_profile');
         }
 
-        $donor = $this->donorModel->findByUserId($_SESSION['user_id']);
+        $userId = $_SESSION['user_id'];
+        $donor = $this->donorModel->findByUserId($userId);
         if (!$donor) { redirect('donor_dashboard', 'Donor profile not found.', 'error'); }
 
         $firstName   = trim($_POST['first_name'] ?? '');
         $lastName    = trim($_POST['last_name'] ?? '');
         $email       = trim($_POST['email'] ?? '');
         $phone       = trim($_POST['phone'] ?? '');
-        $bloodTypeId = intval($_POST['blood_type_id'] ?? 0) ?: null;
+        $bloodType   = trim($_POST['blood_type'] ?? '') ?: null;
         $dateOfBirth = trim($_POST['date_of_birth'] ?? '') ?: null;
         $gender      = trim($_POST['gender'] ?? '') ?: null;
         $address     = trim($_POST['address'] ?? '') ?: null;
@@ -241,19 +249,18 @@ class DonorController {
             redirect('donor_profile', 'First name, last name, and email are required.', 'error');
         }
 
-        // Update donor record
-        $this->donorModel->update($donor['donor_id'], [
+        // Single update — all fields are on users table now
+        $this->donorModel->update($userId, [
             'first_name'    => $firstName,
             'last_name'     => $lastName,
-            'blood_type_id' => $bloodTypeId,
+            'email'         => $email,
+            'phone'         => $phone,
+            'blood_type'    => $bloodType,
             'date_of_birth' => $dateOfBirth,
             'gender'        => $gender,
             'address'       => $address,
             'city'          => $city,
         ]);
-
-        // Update user record (email, phone)
-        $this->donorModel->updateUserContact($_SESSION['user_id'], $email, $phone);
 
         // Update session name if changed
         $_SESSION['first_name'] = $firstName;

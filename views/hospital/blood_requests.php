@@ -38,7 +38,7 @@ ob_start();
             <select id="filterBloodType" class="px-4 py-2 bg-hemo-light-gray border-none rounded-lg text-sm focus:ring-2 focus:ring-hemo-red/20 text-hemo-charcoal">
                 <option value="">All Blood Types</option>
                 <?php foreach ($bloodTypes as $bt): ?>
-                    <option value="<?php echo sanitize($bt['type_name']); ?>"><?php echo sanitize($bt['type_name']); ?></option>
+                    <option value="<?php echo sanitize($bt); ?>"><?php echo sanitize($bt); ?></option>
                 <?php endforeach; ?>
             </select>
             
@@ -160,7 +160,7 @@ ob_start();
                             <?php if (in_array($req['status'], ['Pending', 'Processing', 'Partially Fulfilled'])): ?>
                             <button onclick="openEditModal(<?php echo htmlspecialchars(json_encode([
                                 'id' => $req['request_id'],
-                                'blood_type_id' => $req['blood_type_id'],
+                                'blood_type' => $req['blood_type'],
                                 'units_requested' => $req['units_requested'],
                                 'urgency' => $req['urgency'],
                                 'status' => $req['status'],
@@ -200,10 +200,10 @@ ob_start();
                 <div class="grid grid-cols-1 gap-4 mb-6">
                     <div>
                         <label class="block text-sm font-semibold text-hemo-charcoal mb-1">Blood Type *</label>
-                        <select name="blood_type_id" required class="w-full px-4 py-2 rounded-lg border-2 border-hemo-border focus:border-hemo-red focus:ring-0 transition-fast outline-none text-sm bg-white">
+                        <select name="blood_type" required class="w-full px-4 py-2 rounded-lg border-2 border-hemo-border focus:border-hemo-red focus:ring-0 transition-fast outline-none text-sm bg-white">
                             <option value="">Select Blood Type</option>
                             <?php foreach ($bloodTypes as $bt): ?>
-                                <option value="<?php echo $bt['blood_type_id']; ?>"><?php echo sanitize($bt['type_name']); ?></option>
+                                <option value="<?php echo sanitize($bt); ?>"><?php echo sanitize($bt); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -247,9 +247,9 @@ ob_start();
                 <div class="grid grid-cols-1 gap-4 mb-6">
                     <div>
                         <label class="block text-sm font-semibold text-hemo-charcoal mb-1">Blood Type *</label>
-                        <select name="blood_type_id" id="edit_blood_type_id" required class="w-full px-4 py-2 rounded-lg border-2 border-hemo-border focus:border-hemo-amber focus:ring-0 transition-fast outline-none text-sm bg-white">
+                        <select name="blood_type" id="edit_blood_type" required class="w-full px-4 py-2 rounded-lg border-2 border-hemo-border focus:border-hemo-amber focus:ring-0 transition-fast outline-none text-sm bg-white">
                             <?php foreach ($bloodTypes as $bt): ?>
-                                <option value="<?php echo $bt['blood_type_id']; ?>"><?php echo sanitize($bt['type_name']); ?></option>
+                                <option value="<?php echo sanitize($bt); ?>"><?php echo sanitize($bt); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -418,7 +418,7 @@ ob_start();
     // Edit Modal Populator
     function openEditModal(request) {
         document.getElementById('edit_request_id').value = request.id;
-        document.getElementById('edit_blood_type_id').value = request.blood_type_id || '';
+        document.getElementById('edit_blood_type').value = request.blood_type || '';
         document.getElementById('edit_units_requested').value = request.units_requested || 1;
         document.getElementById('edit_urgency').value = request.urgency || 'Normal';
         document.getElementById('edit_status').value = request.status || 'Pending';

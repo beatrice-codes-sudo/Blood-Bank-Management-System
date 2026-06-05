@@ -2,6 +2,7 @@
 /**
  * Admin Controller
  * Handles admin dashboard and system management
+ * Post-consolidation: donor CRUD operates on users table directly
  */
 class AdminController {
     private $userModel;
@@ -71,7 +72,7 @@ class AdminController {
 
         $donors = $this->donorModel->getAll(200, 0);
         $stats = $this->donorModel->getGlobalStats();
-        $bloodTypes = $this->donorModel->getBloodTypes();
+        $bloodTypes = BLOOD_TYPES;
 
         require_once __DIR__ . '/../views/admin/donors.php';
     }
@@ -82,8 +83,8 @@ class AdminController {
     public function viewDonor() {
         requireRole(ROLE_ADMIN);
 
-        $donorId = (int)($_GET['donor_id'] ?? 0);
-        $donor = $this->donorModel->findById($donorId);
+        $userId = (int)($_GET['donor_id'] ?? 0);
+        $donor = $this->donorModel->findById($userId);
 
         if (!$donor) {
             http_response_code(404);
@@ -91,7 +92,7 @@ class AdminController {
             exit;
         }
 
-        $donorStats = $this->donorModel->getStats($donorId);
+        $donorStats = $this->donorModel->getStats($userId);
 
         header('Content-Type: application/json');
         echo json_encode([
@@ -103,6 +104,7 @@ class AdminController {
 
     /**
      * Add a new donor (POST)
+     * Post-consolidation: single INSERT into users with donor fields
      */
     public function addDonor() {
         requireRole(ROLE_ADMIN);
@@ -131,24 +133,17 @@ class AdminController {
         }
 
         try {
-            // Create user account
-            $userId = $this->userModel->register([
-                'role_id'    => ROLE_DONOR,
-                'username'   => $username,
-                'email'      => $email,
-                'password'   => $password,
-                'first_name' => $firstName,
-                'last_name'  => $lastName,
-                'phone'      => $_POST['phone'] ?? null,
-                'is_active'  => 1,
-            ]);
-
-            // Create donor profile
-            $this->donorModel->create([
-                'user_id'            => $userId,
+            // Single INSERT — all donor fields go into users
+            $this->userModel->register([
+                'role'               => ROLE_DONOR,
+                'username'           => $username,
+                'email'              => $email,
+                'password'           => $password,
                 'first_name'         => $firstName,
                 'last_name'          => $lastName,
-                'blood_type_id'      => !empty($_POST['blood_type_id']) ? (int)$_POST['blood_type_id'] : null,
+                'phone'              => $_POST['phone'] ?? null,
+                'is_active'          => 1,
+                'blood_type'         => !empty($_POST['blood_type']) ? $_POST['blood_type'] : null,
                 'date_of_birth'      => !empty($_POST['date_of_birth']) ? $_POST['date_of_birth'] : null,
                 'gender'             => !empty($_POST['gender']) ? $_POST['gender'] : null,
                 'address'            => $_POST['address'] ?? null,
@@ -164,6 +159,7 @@ class AdminController {
 
     /**
      * Edit an existing donor (POST)
+     * Post-consolidation: single UPDATE on users table
      */
     public function editDonor() {
         requireRole(ROLE_ADMIN);
@@ -172,16 +168,19 @@ class AdminController {
             redirect('admin_donors');
         }
 
-        $donorId = (int)($_POST['donor_id'] ?? 0);
-        if (!$donorId) {
+        $userId = (int)($_POST['donor_id'] ?? 0);
+        if (!$userId) {
             redirect('admin_donors', 'Invalid donor ID', 'error');
         }
 
         try {
-            $this->donorModel->update($donorId, [
+            // Update donor fields on users table
+            $this->donorModel->update($userId, [
                 'first_name'    => $_POST['first_name'] ?? '',
                 'last_name'     => $_POST['last_name'] ?? '',
-                'blood_type_id' => !empty($_POST['blood_type_id']) ? (int)$_POST['blood_type_id'] : null,
+                'email'         => $_POST['email'] ?? '',
+                'phone'         => $_POST['phone'] ?? null,
+                'blood_type'    => !empty($_POST['blood_type']) ? $_POST['blood_type'] : null,
                 'date_of_birth' => !empty($_POST['date_of_birth']) ? $_POST['date_of_birth'] : null,
                 'gender'        => !empty($_POST['gender']) ? $_POST['gender'] : null,
                 'address'       => $_POST['address'] ?? null,
@@ -190,18 +189,7 @@ class AdminController {
 
             // Update eligibility if provided
             if (!empty($_POST['eligibility_status'])) {
-                $this->donorModel->updateEligibility($donorId, $_POST['eligibility_status']);
-            }
-
-            // Update user email/phone if provided
-            $donor = $this->donorModel->findById($donorId);
-            if ($donor) {
-                $db = Database::getInstance()->getConnection();
-                $stmt = $db->prepare("UPDATE users SET phone = :phone WHERE user_id = :user_id");
-                $stmt->execute([
-                    'phone'   => $_POST['phone'] ?? null,
-                    'user_id' => $donor['user_id'],
-                ]);
+                $this->donorModel->updateEligibility($userId, $_POST['eligibility_status']);
             }
 
             redirect('admin_donors', 'Donor updated successfully', 'success');
@@ -220,13 +208,13 @@ class AdminController {
             redirect('admin_donors');
         }
 
-        $donorId = (int)($_POST['donor_id'] ?? 0);
-        if (!$donorId) {
+        $userId = (int)($_POST['donor_id'] ?? 0);
+        if (!$userId) {
             redirect('admin_donors', 'Invalid donor ID', 'error');
         }
 
         try {
-            $this->donorModel->delete($donorId);
+            $this->donorModel->delete($userId);
             redirect('admin_donors', 'Donor deleted successfully', 'success');
         } catch (Exception $e) {
             redirect('admin_donors', 'Error deleting donor: ' . $e->getMessage(), 'error');
@@ -239,8 +227,8 @@ class AdminController {
     public function donorHistory() {
         requireRole(ROLE_ADMIN);
 
-        $donorId = (int)($_GET['donor_id'] ?? 0);
-        $history = $this->donorModel->getDonationHistory($donorId);
+        $userId = (int)($_GET['donor_id'] ?? 0);
+        $history = $this->donorModel->getDonationHistory($userId);
 
         header('Content-Type: application/json');
         echo json_encode(['history' => $history]);

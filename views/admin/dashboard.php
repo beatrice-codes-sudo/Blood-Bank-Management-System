@@ -31,7 +31,7 @@ ob_start();
             <p class="font-bold text-lg">Critical Blood Stock Alert</p>
             <p class="text-white/80 text-sm">
                 <?php echo count($data['critical_stock']); ?> blood type(s) are below minimum threshold: 
-                <strong><?php echo implode(', ', array_column($data['critical_stock'], 'type_name')); ?></strong>
+                <strong><?php echo implode(', ', array_column($data['critical_stock'], 'blood_type')); ?></strong>
             </p>
         </div>
     </div>
@@ -119,7 +119,7 @@ ob_start();
                     $textClass = $count === 0 ? 'text-hemo-warning' : ($count < 5 ? 'text-hemo-amber' : 'text-hemo-red');
                 ?>
                 <div class="blood-card flex flex-col items-center justify-center p-5 rounded-xl border-2 <?php echo $bgClass; ?> transition-default cursor-default hover:bg-white">
-                    <span class="text-2xl font-bold text-hemo-navy"><?php echo sanitize($item['type_name']); ?></span>
+                    <span class="text-2xl font-bold text-hemo-navy"><?php echo sanitize($item['blood_type']); ?></span>
                     <span class="text-xl font-bold <?php echo $textClass; ?> mt-2"><?php echo $count; ?></span>
                     <span class="text-xs text-hemo-gray mt-1">units</span>
                 </div>
@@ -217,14 +217,14 @@ ob_start();
                         </td>
                         <td class="px-6 py-4">
                             <?php 
-                            $roleBg = $user['role_name'] === 'admin' ? 'bg-purple-100 text-purple-700' : 
-                                     ($user['role_name'] === 'hospital_manager' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-hemo-red');
-                            $roleIcon = $user['role_name'] === 'admin' ? 'fa-shield' : 
-                                       ($user['role_name'] === 'hospital_manager' ? 'fa-hospital' : 'fa-heart');
+                            $roleBg = $user['role'] === 'Admin' ? 'bg-purple-100 text-purple-700' : 
+                                     ($user['role'] === 'Hospital' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-hemo-red');
+                            $roleIcon = $user['role'] === 'Admin' ? 'fa-shield' : 
+                                       ($user['role'] === 'Hospital' ? 'fa-hospital' : 'fa-heart');
                             ?>
                             <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold <?php echo $roleBg; ?>">
                                 <i class="fas <?php echo $roleIcon; ?> text-[9px]"></i>
-                                <?php echo sanitize(ucwords(str_replace('_', ' ', $user['role_name']))); ?>
+                                <?php echo sanitize($user['role']); ?>
                             </span>
                         </td>
                         <td class="px-6 py-4 text-sm text-hemo-charcoal"><?php echo sanitize($user['email']); ?></td>

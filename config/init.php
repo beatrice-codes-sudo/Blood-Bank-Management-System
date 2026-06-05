@@ -34,7 +34,7 @@ function isLoggedIn() {
  * Helper: get current user role
  */
 function getUserRole() {
-    return $_SESSION['role_id'] ?? null;
+    return $_SESSION['role'] ?? null;
 }
 
 /**

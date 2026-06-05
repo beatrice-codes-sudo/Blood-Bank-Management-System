@@ -2,15 +2,14 @@
 /**
  * Auth Controller
  * Handles login, registration, and logout
+ * Post-consolidation: single INSERT for donor registration, role is a string
  */
 class AuthController {
     private $userModel;
-    private $donorModel;
     private $hospitalModel;
 
     public function __construct() {
         $this->userModel = new User();
-        $this->donorModel = new DonorModel();
         $this->hospitalModel = new HospitalModel();
     }
 
@@ -33,8 +32,8 @@ class AuthController {
             $this->redirectToDashboard();
             return;
         }
-        $bloodInventory = new BloodInventory();
-        $bloodTypes = $bloodInventory->getBloodTypes();
+        // Blood types from constant array instead of DB
+        $bloodTypes = BLOOD_TYPES;
         require_once __DIR__ . '/../views/auth/register_donor.php';
     }
 
@@ -77,10 +76,9 @@ class AuthController {
         $user = $this->userModel->login($email, $password);
 
         if ($user) {
-            // Set session
+            // Set session — role is now a string from the ENUM column
             $_SESSION['user_id'] = $user['user_id'];
-            $_SESSION['role_id'] = $user['role_id'];
-            $_SESSION['role_name'] = $user['role_name'];
+            $_SESSION['role'] = $user['role'];
             $_SESSION['username'] = $user['username'];
             $_SESSION['first_name'] = $user['first_name'];
             $_SESSION['last_name'] = $user['last_name'];
@@ -96,6 +94,7 @@ class AuthController {
 
     /**
      * Process donor registration
+     * Post-consolidation: single INSERT into users with donor fields
      */
     public function registerDonor() {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -110,7 +109,7 @@ class AuthController {
             'phone'         => sanitize($_POST['phone'] ?? ''),
             'password'      => $_POST['password'] ?? '',
             'confirm_password' => $_POST['confirm_password'] ?? '',
-            'blood_type_id' => $_POST['blood_type_id'] ?? null,
+            'blood_type'    => $_POST['blood_type'] ?? null,
             'date_of_birth' => $_POST['date_of_birth'] ?? null,
             'gender'        => $_POST['gender'] ?? null,
             'address'       => sanitize($_POST['address'] ?? ''),
@@ -119,7 +118,7 @@ class AuthController {
 
         // Validation
         $errors = $this->validateRegistration($data);
-        if ($data['blood_type_id'] === '' || $data['blood_type_id'] === null) {
+        if (empty($data['blood_type'])) {
             $errors[] = 'Blood type is required';
         }
 
@@ -131,28 +130,21 @@ class AuthController {
         }
 
         try {
-            // Create user
+            // Single INSERT — donor fields go directly into users
             $username = strtolower($data['first_name'] . '.' . $data['last_name'] . rand(100, 999));
-            $userId = $this->userModel->register([
-                'role_id'    => ROLE_DONOR,
-                'username'   => $username,
-                'email'      => $data['email'],
-                'password'   => $data['password'],
-                'first_name' => $data['first_name'],
-                'last_name'  => $data['last_name'],
-                'phone'      => $data['phone'],
-            ]);
-
-            // Create donor profile
-            $this->donorModel->create([
-                'user_id'       => $userId,
-                'first_name'    => $data['first_name'],
-                'last_name'     => $data['last_name'],
-                'blood_type_id' => $data['blood_type_id'],
-                'date_of_birth' => $data['date_of_birth'],
-                'gender'        => $data['gender'],
-                'address'       => $data['address'],
-                'city'          => $data['city'],
+            $this->userModel->register([
+                'role'               => ROLE_DONOR,
+                'username'           => $username,
+                'email'              => $data['email'],
+                'password'           => $data['password'],
+                'first_name'         => $data['first_name'],
+                'last_name'          => $data['last_name'],
+                'phone'              => $data['phone'],
+                'blood_type'         => $data['blood_type'],
+                'date_of_birth'      => $data['date_of_birth'],
+                'gender'             => $data['gender'],
+                'address'            => $data['address'],
+                'city'               => $data['city'],
             ]);
 
             redirect('login', 'Registration successful! Please login.', 'success');
@@ -210,7 +202,7 @@ class AuthController {
             // Create user (hospital manager)
             $username = strtolower(str_replace(' ', '', $data['hospital_name'])) . rand(100, 999);
             $userId = $this->userModel->register([
-                'role_id'    => ROLE_HOSPITAL,
+                'role'       => ROLE_HOSPITAL,
                 'username'   => $username,
                 'email'      => $data['email'],
                 'password'   => $data['password'],
@@ -219,7 +211,7 @@ class AuthController {
                 'phone'      => $data['phone'],
             ]);
 
-            // Create hospital record
+            // Create hospital record (hospitals table is kept)
             $this->hospitalModel->create([
                 'user_id'        => $userId,
                 'hospital_name'  => $data['hospital_name'],

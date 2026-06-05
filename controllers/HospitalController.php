@@ -2,6 +2,7 @@
 /**
  * Hospital Controller
  * Handles hospital manager dashboard and blood request management
+ * Post-consolidation: blood_type is a string ENUM, not an FK ID
  */
 class HospitalController {
     private $hospitalModel;
@@ -55,7 +56,7 @@ class HospitalController {
         $hospitalId = $hospital['hospital_id'];
         $requests   = $this->hospitalModel->getAllRequests($hospitalId);
         $stats      = $this->hospitalModel->getExtendedRequestStats($hospitalId);
-        $bloodTypes = $this->hospitalModel->getBloodTypes();
+        $bloodTypes = BLOOD_TYPES;
 
         require_once __DIR__ . '/../views/hospital/blood_requests.php';
     }
@@ -103,19 +104,19 @@ class HospitalController {
         }
 
         // Validate required fields
-        $bloodTypeId   = !empty($_POST['blood_type_id']) ? (int)$_POST['blood_type_id'] : null;
+        $bloodType      = !empty($_POST['blood_type']) ? trim($_POST['blood_type']) : null;
         $unitsRequested = (int)($_POST['units_requested'] ?? 0);
-        $urgency       = trim($_POST['urgency'] ?? 'Normal');
-        $notes         = trim($_POST['notes'] ?? '');
+        $urgency        = trim($_POST['urgency'] ?? 'Normal');
+        $notes          = trim($_POST['notes'] ?? '');
 
-        if (!$bloodTypeId || $unitsRequested < 1) {
+        if (!$bloodType || $unitsRequested < 1) {
             redirect('hospital_requests', 'Blood type and at least 1 unit are required', 'error');
         }
 
         try {
             $this->hospitalModel->createRequest([
                 'hospital_id'     => $hospital['hospital_id'],
-                'blood_type_id'   => $bloodTypeId,
+                'blood_type'      => $bloodType,
                 'units_requested' => $unitsRequested,
                 'urgency'         => $urgency,
                 'notes'           => $notes ?: null,
@@ -150,7 +151,7 @@ class HospitalController {
 
         try {
             $this->hospitalModel->updateRequest($requestId, $hospital['hospital_id'], [
-                'blood_type_id'   => !empty($_POST['blood_type_id']) ? (int)$_POST['blood_type_id'] : null,
+                'blood_type'      => !empty($_POST['blood_type']) ? trim($_POST['blood_type']) : null,
                 'units_requested' => (int)($_POST['units_requested'] ?? 1),
                 'urgency'         => $_POST['urgency'] ?? 'Normal',
                 'status'          => $_POST['status'] ?? 'Pending',

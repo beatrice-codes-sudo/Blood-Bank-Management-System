@@ -84,7 +84,7 @@ ob_start();
             <select id="filterBloodType" class="px-4 py-2 bg-hemo-light-gray border-none rounded-lg text-sm focus:ring-2 focus:ring-hemo-red/20 text-hemo-charcoal">
                 <option value="">All Blood Types</option>
                 <?php foreach ($bloodTypes as $bt): ?>
-                    <option value="<?php echo sanitize($bt['type_name']); ?>"><?php echo sanitize($bt['type_name']); ?></option>
+                    <option value="<?php echo sanitize($bt); ?>"><?php echo sanitize($bt); ?></option>
                 <?php endforeach; ?>
             </select>
             
@@ -128,7 +128,7 @@ ob_start();
                                 <div>
                                     <p class="text-sm font-bold text-hemo-navy leading-none donor-name"><?php echo sanitize($donor['first_name'] . ' ' . $donor['last_name']); ?></p>
                                     <div class="flex items-center gap-2 mt-1">
-                                        <span class="text-[10px] font-mono text-hemo-red bg-hemo-light-red px-1.5 py-0.5 rounded">ID: D-<?php echo str_pad($donor['donor_id'], 4, '0', STR_PAD_LEFT); ?></span>
+                                        <span class="text-[10px] font-mono text-hemo-red bg-hemo-light-red px-1.5 py-0.5 rounded">ID: D-<?php echo str_pad($donor['user_id'], 4, '0', STR_PAD_LEFT); ?></span>
                                         <span class="text-xs text-hemo-gray donor-email"><?php echo sanitize($donor['email']); ?></span>
                                     </div>
                                 </div>
@@ -176,30 +176,31 @@ ob_start();
                             <?php else: ?>
                                 <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-red-50 text-hemo-warning border border-red-200">Inactive</span>
                             <?php endif; ?>
-                            <p class="text-[10px] text-hemo-gray mt-1">Joined: <?php echo date('M Y', strtotime($donor['registered_at'])); ?></p>
+                            <p class="text-[10px] text-hemo-gray mt-1">Joined: <?php echo date('M Y', strtotime($donor['created_at'])); ?></p>
                         </td>
                         <td class="px-6 py-4 text-right space-x-1 whitespace-nowrap">
-                            <button onclick="viewProfile(<?php echo $donor['donor_id']; ?>)" class="p-2 rounded-lg bg-hemo-light-gray text-hemo-charcoal hover:bg-blue-50 hover:text-blue-600 transition-fast" title="View Profile">
+                            <button onclick="viewProfile(<?php echo $donor['user_id']; ?>)" class="p-2 rounded-lg bg-hemo-light-gray text-hemo-charcoal hover:bg-blue-50 hover:text-blue-600 transition-fast" title="View Profile">
                                 <i class="fas fa-eye text-sm"></i>
                             </button>
                             <button onclick="openEditModal(<?php echo htmlspecialchars(json_encode([
-                                'id' => $donor['donor_id'],
+                                'id' => $donor['user_id'],
                                 'first_name' => $donor['first_name'],
                                 'last_name' => $donor['last_name'],
-                                'blood_type_id' => $donor['blood_type_id'],
+                                'blood_type' => $donor['blood_type'],
                                 'date_of_birth' => $donor['date_of_birth'],
                                 'gender' => $donor['gender'],
                                 'address' => $donor['address'],
                                 'city' => $donor['city'],
                                 'eligibility_status' => $donor['eligibility_status'],
-                                'phone' => $donor['phone']
+                                'phone' => $donor['phone'],
+                                'email' => $donor['email']
                             ])); ?>)" class="p-2 rounded-lg bg-hemo-light-gray text-hemo-charcoal hover:bg-amber-50 hover:text-hemo-amber transition-fast" title="Edit Donor">
                                 <i class="fas fa-edit text-sm"></i>
                             </button>
-                            <button onclick="viewHistory(<?php echo $donor['donor_id']; ?>)" class="p-2 rounded-lg bg-hemo-light-gray text-hemo-charcoal hover:bg-green-50 hover:text-hemo-success transition-fast" title="Donation History">
+                            <button onclick="viewHistory(<?php echo $donor['user_id']; ?>)" class="p-2 rounded-lg bg-hemo-light-gray text-hemo-charcoal hover:bg-green-50 hover:text-hemo-success transition-fast" title="Donation History">
                                 <i class="fas fa-clock-rotate-left text-sm"></i>
                             </button>
-                            <button onclick="openDeleteModal(<?php echo $donor['donor_id']; ?>)" class="p-2 rounded-lg bg-hemo-light-gray text-hemo-charcoal hover:bg-red-50 hover:text-hemo-warning transition-fast" title="Delete Donor">
+                            <button onclick="openDeleteModal(<?php echo $donor['user_id']; ?>)" class="p-2 rounded-lg bg-hemo-light-gray text-hemo-charcoal hover:bg-red-50 hover:text-hemo-warning transition-fast" title="Delete Donor">
                                 <i class="fas fa-trash text-sm"></i>
                             </button>
                         </td>
@@ -255,10 +256,10 @@ ob_start();
                     </div>
                     <div>
                         <label class="block text-sm font-semibold text-hemo-charcoal mb-1">Blood Type</label>
-                        <select name="blood_type_id" class="w-full px-4 py-2 rounded-lg border-2 border-hemo-border focus:border-hemo-red focus:ring-0 transition-fast outline-none text-sm bg-white">
+                        <select name="blood_type" class="w-full px-4 py-2 rounded-lg border-2 border-hemo-border focus:border-hemo-red focus:ring-0 transition-fast outline-none text-sm bg-white">
                             <option value="">Unknown / Pending test</option>
                             <?php foreach ($bloodTypes as $bt): ?>
-                                <option value="<?php echo $bt['blood_type_id']; ?>"><?php echo sanitize($bt['type_name']); ?></option>
+                                <option value="<?php echo sanitize($bt); ?>"><?php echo sanitize($bt); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -316,10 +317,10 @@ ob_start();
                     </div>
                     <div>
                         <label class="block text-sm font-semibold text-hemo-charcoal mb-1">Blood Type</label>
-                        <select name="blood_type_id" id="edit_blood_type_id" class="w-full px-4 py-2 rounded-lg border-2 border-hemo-border focus:border-hemo-amber focus:ring-0 transition-fast outline-none text-sm bg-white">
+                        <select name="blood_type" id="edit_blood_type" class="w-full px-4 py-2 rounded-lg border-2 border-hemo-border focus:border-hemo-amber focus:ring-0 transition-fast outline-none text-sm bg-white">
                             <option value="">Unknown / Pending test</option>
                             <?php foreach ($bloodTypes as $bt): ?>
-                                <option value="<?php echo $bt['blood_type_id']; ?>"><?php echo sanitize($bt['type_name']); ?></option>
+                                <option value="<?php echo sanitize($bt); ?>"><?php echo sanitize($bt); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -494,7 +495,7 @@ ob_start();
         document.getElementById('edit_donor_id').value = donor.id;
         document.getElementById('edit_first_name').value = donor.first_name || '';
         document.getElementById('edit_last_name').value = donor.last_name || '';
-        document.getElementById('edit_blood_type_id').value = donor.blood_type_id || '';
+        document.getElementById('edit_blood_type').value = donor.blood_type || '';
         document.getElementById('edit_gender').value = donor.gender || '';
         document.getElementById('edit_dob').value = donor.date_of_birth || '';
         document.getElementById('edit_phone').value = donor.phone || '';
@@ -533,7 +534,7 @@ ob_start();
                         </div>
                         <div>
                             <h4 class="text-xl font-bold text-hemo-navy">${d.first_name} ${d.last_name}</h4>
-                            <p class="text-sm text-hemo-gray font-mono mb-2">ID: D-${String(d.donor_id).padStart(4, '0')}</p>
+                            <p class="text-sm text-hemo-gray font-mono mb-2">ID: D-${String(d.user_id).padStart(4, '0')}</p>
                             <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-sm font-bold bg-hemo-red text-white">
                                 <i class="fas fa-droplet"></i> ${bType}
                             </span>

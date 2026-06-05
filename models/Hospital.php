@@ -2,6 +2,7 @@
 /**
  * Hospital Model
  * Handles hospital profiles and blood request management
+ * Post-consolidation: blood_type is an inline ENUM, no blood_types table
  */
 class HospitalModel {
     private $db;
@@ -111,12 +112,11 @@ class HospitalModel {
     }
 
     /**
-     * Get recent requests for a hospital
+     * Get recent requests for a hospital (blood_type is now a direct column)
      */
     public function getRecentRequests($hospitalId, $limit = 10) {
-        $sql = "SELECT r.*, bt.type_name as blood_type
+        $sql = "SELECT r.*
                 FROM requests r
-                LEFT JOIN blood_types bt ON r.blood_type_id = bt.blood_type_id
                 WHERE r.hospital_id = :hospital_id
                 ORDER BY r.created_at DESC
                 LIMIT :limit";
@@ -159,10 +159,9 @@ class HospitalModel {
      * Get all blood requests for a hospital
      */
     public function getAllRequests($hospitalId, $limit = 200, $offset = 0) {
-        $sql = "SELECT r.*, bt.type_name as blood_type,
+        $sql = "SELECT r.*,
                 u.first_name as requester_first, u.last_name as requester_last
                 FROM requests r
-                LEFT JOIN blood_types bt ON r.blood_type_id = bt.blood_type_id
                 LEFT JOIN users u ON r.requested_by = u.user_id
                 WHERE r.hospital_id = :hospital_id
                 ORDER BY r.created_at DESC
@@ -179,11 +178,10 @@ class HospitalModel {
      * Get a single request by ID (scoped to hospital)
      */
     public function getRequestById($requestId, $hospitalId) {
-        $sql = "SELECT r.*, bt.type_name as blood_type,
+        $sql = "SELECT r.*,
                 u.first_name as requester_first, u.last_name as requester_last,
                 h.hospital_name
                 FROM requests r
-                LEFT JOIN blood_types bt ON r.blood_type_id = bt.blood_type_id
                 LEFT JOIN users u ON r.requested_by = u.user_id
                 LEFT JOIN hospitals h ON r.hospital_id = h.hospital_id
                 WHERE r.request_id = :request_id AND r.hospital_id = :hospital_id";
@@ -237,12 +235,12 @@ class HospitalModel {
      * Create a new blood request
      */
     public function createRequest($data) {
-        $sql = "INSERT INTO requests (hospital_id, blood_type_id, units_requested, urgency, status, notes, requested_by)
-                VALUES (:hospital_id, :blood_type_id, :units_requested, :urgency, :status, :notes, :requested_by)";
+        $sql = "INSERT INTO requests (hospital_id, blood_type, units_requested, urgency, status, notes, requested_by)
+                VALUES (:hospital_id, :blood_type, :units_requested, :urgency, :status, :notes, :requested_by)";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
             'hospital_id'     => $data['hospital_id'],
-            'blood_type_id'   => $data['blood_type_id'] ?? null,
+            'blood_type'      => $data['blood_type'] ?? null,
             'units_requested' => $data['units_requested'] ?? 1,
             'urgency'         => $data['urgency'] ?? 'Normal',
             'status'          => 'Pending',
@@ -257,7 +255,7 @@ class HospitalModel {
      */
     public function updateRequest($requestId, $hospitalId, $data) {
         $sql = "UPDATE requests SET
-                blood_type_id = :blood_type_id,
+                blood_type = :blood_type,
                 units_requested = :units_requested,
                 urgency = :urgency,
                 status = :status,
@@ -268,7 +266,7 @@ class HospitalModel {
         return $stmt->execute([
             'request_id'      => $requestId,
             'hospital_id'     => $hospitalId,
-            'blood_type_id'   => $data['blood_type_id'] ?? null,
+            'blood_type'      => $data['blood_type'] ?? null,
             'units_requested' => $data['units_requested'] ?? 1,
             'urgency'         => $data['urgency'] ?? 'Normal',
             'status'          => $data['status'] ?? 'Pending',
@@ -303,14 +301,6 @@ class HospitalModel {
                 ORDER BY d.dispatched_date DESC";
         $stmt = $this->db->prepare($sql);
         $stmt->execute(['request_id' => $requestId]);
-        return $stmt->fetchAll();
-    }
-
-    /**
-     * Get blood types list
-     */
-    public function getBloodTypes() {
-        $stmt = $this->db->query("SELECT * FROM blood_types ORDER BY blood_type_id");
         return $stmt->fetchAll();
     }
 }

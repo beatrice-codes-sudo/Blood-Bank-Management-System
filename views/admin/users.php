@@ -73,16 +73,16 @@ ob_start();
                             <?php 
                             $roleClass = '';
                             $roleIcon = '';
-                            switch($user['role_name']) {
-                                case 'admin': 
+                            switch($user['role']) {
+                                case 'Admin': 
                                     $roleClass = 'bg-purple-100 text-purple-700'; 
                                     $roleIcon = 'fa-shield-halved';
                                     break;
-                                case 'hospital_manager': 
+                                case 'Hospital': 
                                     $roleClass = 'bg-blue-100 text-blue-700'; 
                                     $roleIcon = 'fa-hospital';
                                     break;
-                                case 'donor': 
+                                case 'Donor': 
                                     $roleClass = 'bg-red-100 text-hemo-red'; 
                                     $roleIcon = 'fa-heart';
                                     break;
@@ -90,7 +90,7 @@ ob_start();
                             ?>
                             <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold <?php echo $roleClass; ?> uppercase tracking-tight">
                                 <i class="fas <?php echo $roleIcon; ?> text-[9px]"></i>
-                                <?php echo sanitize(str_replace('_', ' ', $user['role_name'])); ?>
+                                <?php echo sanitize($user['role']); ?>
                             </span>
                         </td>
                         <td class="px-6 py-4">

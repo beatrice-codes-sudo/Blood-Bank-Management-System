@@ -1,5 +1,7 @@
 -- ================================================================
--- HemoLink Blood Bank Management System - Database Schema
+-- HemoLink Blood Bank Management System - Consolidated Database Schema
+-- Post-consolidation: 11 tables (down from 14)
+-- Removed: roles, blood_types, components, donors, staff, hospital_staff
 -- ================================================================
 
 CREATE DATABASE IF NOT EXISTS `bms_db`;
@@ -19,86 +21,66 @@ DROP TABLE IF EXISTS `request_items`;
 DROP TABLE IF EXISTS `blood_tests`;
 DROP TABLE IF EXISTS `appointments`;
 DROP TABLE IF EXISTS `donor_health_history`;
-DROP TABLE IF EXISTS `hospital_staff`;
-DROP TABLE IF EXISTS `staff`;
 DROP TABLE IF EXISTS `donations`;
 DROP TABLE IF EXISTS `requests`;
 DROP TABLE IF EXISTS `blood_units`;
-DROP TABLE IF EXISTS `donors`;
 DROP TABLE IF EXISTS `hospitals`;
 DROP TABLE IF EXISTS `users`;
+
+-- Also drop legacy tables if upgrading from old schema
+DROP TABLE IF EXISTS `hospital_staff`;
+DROP TABLE IF EXISTS `staff`;
+DROP TABLE IF EXISTS `donors`;
 DROP TABLE IF EXISTS `blood_types`;
 DROP TABLE IF EXISTS `components`;
 DROP TABLE IF EXISTS `roles`;
 
 -- --------------------------------------------------------
--- Core Tables
+-- Users (central entity — absorbs roles, donors, staff)
 -- --------------------------------------------------------
-
-CREATE TABLE `roles` (
-    `role_id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    `role_name` VARCHAR(50) NOT NULL,
-    `role_description` VARCHAR(255) NULL,
-    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
-    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP() ON UPDATE CURRENT_TIMESTAMP(),
-    UNIQUE KEY `roles_role_name_unique` (`role_name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE `blood_types` (
-    `blood_type_id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    `type_name` VARCHAR(5) NOT NULL,
-    UNIQUE KEY `blood_types_type_name_unique` (`type_name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE `components` (
-    `component_id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    `component_name` VARCHAR(50) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE `users` (
-    `user_id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    `role_id` INT UNSIGNED NOT NULL,
-    `username` VARCHAR(50) NOT NULL,
-    `email` VARCHAR(100) NOT NULL,
-    `password_hash` VARCHAR(255) NOT NULL COMMENT 'Bcrypt hashed',
-    `first_name` VARCHAR(50) NOT NULL,
-    `last_name` VARCHAR(50) NOT NULL,
-    `phone` VARCHAR(20) NULL,
-    `is_active` BOOLEAN NULL DEFAULT 1,
-    `last_login` TIMESTAMP NULL,
-    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
-    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP() ON UPDATE CURRENT_TIMESTAMP(),
+    `user_id`              INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `role`                 ENUM('Admin','Hospital','Donor') NOT NULL,
+    `username`             VARCHAR(50) NOT NULL,
+    `email`                VARCHAR(100) NOT NULL,
+    `password_hash`        VARCHAR(255) NOT NULL COMMENT 'Bcrypt hashed',
+    `first_name`           VARCHAR(50) NOT NULL,
+    `last_name`            VARCHAR(50) NOT NULL,
+    `phone`                VARCHAR(20) NULL,
+    `is_active`            BOOLEAN NULL DEFAULT 1,
+    `last_login`           TIMESTAMP NULL,
+
+    -- Donor-specific (NULL for non-donors)
+    `blood_type`           ENUM('A+','A-','B+','B-','AB+','AB-','O+','O-') NULL,
+    `date_of_birth`        DATE NULL,
+    `gender`               ENUM('Male','Female','Other') NULL,
+    `address`              VARCHAR(255) NULL,
+    `city`                 VARCHAR(50) NULL,
+    `eligibility_status`   ENUM('Eligible','Deferred','Permanently Deferred') NULL DEFAULT 'Eligible',
+
+    -- Staff-specific (NULL for non-staff)
+    `employee_id`          VARCHAR(20) NULL,
+    `department`           ENUM('Collection','Laboratory','Inventory','Administration','Nursing') NULL,
+    `designation`          VARCHAR(50) NULL,
+    `qualification`        VARCHAR(100) NULL,
+    `date_joined`          DATE NULL,
+    `is_verified`          BOOLEAN NULL,
+
+    -- Hospital-staff-specific
+    `hospital_id`          INT UNSIGNED NULL,
+    `is_authorized_requester` BOOLEAN NULL,
+
+    `created_at`           TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
+    `updated_at`           TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP() ON UPDATE CURRENT_TIMESTAMP(),
+
     UNIQUE KEY `users_username_unique` (`username`),
     UNIQUE KEY `users_email_unique` (`email`),
-    CONSTRAINT `users_role_id_foreign` FOREIGN KEY (`role_id`) REFERENCES `roles` (`role_id`)
+    UNIQUE KEY `users_employee_id_unique` (`employee_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- --------------------------------------------------------
--- Donors (linked to users)
--- --------------------------------------------------------
-
-CREATE TABLE `donors` (
-    `donor_id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    `user_id` INT UNSIGNED NOT NULL,
-    `first_name` VARCHAR(50) NOT NULL,
-    `last_name` VARCHAR(50) NOT NULL,
-    `blood_type_id` INT UNSIGNED NULL,
-    `date_of_birth` DATE NULL,
-    `gender` ENUM('Male', 'Female', 'Other') NULL,
-    `address` VARCHAR(255) NULL,
-    `city` VARCHAR(50) NULL,
-    `eligibility_status` ENUM('Eligible', 'Deferred', 'Permanently Deferred') NULL DEFAULT 'Eligible',
-    `last_donation_date` DATE NULL,
-    `total_donations` INT UNSIGNED NULL DEFAULT 0,
-    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
-    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP() ON UPDATE CURRENT_TIMESTAMP(),
-    UNIQUE KEY `donors_user_id_unique` (`user_id`),
-    CONSTRAINT `donors_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,
-    CONSTRAINT `donors_blood_type_foreign` FOREIGN KEY (`blood_type_id`) REFERENCES `blood_types` (`blood_type_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- --------------------------------------------------------
--- Hospitals (linked to manager user)
+-- Hospitals (organizational entity, linked to manager user)
 -- --------------------------------------------------------
 
 CREATE TABLE `hospitals` (
@@ -121,22 +103,26 @@ CREATE TABLE `hospitals` (
     CONSTRAINT `hospitals_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Add hospital FK on users after hospitals table exists
+ALTER TABLE `users`
+    ADD CONSTRAINT `users_hospital_id_foreign`
+    FOREIGN KEY (`hospital_id`) REFERENCES `hospitals` (`hospital_id`);
+
 -- --------------------------------------------------------
 -- Donations
 -- --------------------------------------------------------
 
 CREATE TABLE `donations` (
     `donation_id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    `donor_id` INT UNSIGNED NOT NULL,
-    `blood_type_id` INT UNSIGNED NULL,
+    `donor_id` INT UNSIGNED NOT NULL COMMENT 'References users.user_id for donor',
+    `blood_type` ENUM('A+','A-','B+','B-','AB+','AB-','O+','O-') NULL,
     `donation_date` DATE NOT NULL,
     `volume_ml` INT UNSIGNED NULL DEFAULT 450,
     `status` ENUM('Pending', 'Completed', 'Cancelled') NULL DEFAULT 'Pending',
     `donation_center` VARCHAR(100) NULL,
     `notes` TEXT NULL,
     `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
-    CONSTRAINT `donations_donor_id_foreign` FOREIGN KEY (`donor_id`) REFERENCES `donors` (`donor_id`),
-    CONSTRAINT `donations_blood_type_foreign` FOREIGN KEY (`blood_type_id`) REFERENCES `blood_types` (`blood_type_id`)
+    CONSTRAINT `donations_donor_id_foreign` FOREIGN KEY (`donor_id`) REFERENCES `users` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- --------------------------------------------------------
@@ -145,14 +131,13 @@ CREATE TABLE `donations` (
 
 CREATE TABLE `blood_units` (
     `unit_id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    `blood_type_id` INT UNSIGNED NOT NULL,
+    `blood_type` ENUM('A+','A-','B+','B-','AB+','AB-','O+','O-') NOT NULL,
     `donation_id` INT UNSIGNED NULL,
     `status` ENUM('Available', 'Reserved', 'Dispatched', 'Expired', 'Quarantined', 'Discarded') NULL DEFAULT 'Available',
     `collection_date` DATE NULL,
     `expiry_date` DATE NULL,
     `volume_ml` INT UNSIGNED NULL DEFAULT 450,
     `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
-    CONSTRAINT `blood_units_blood_type_foreign` FOREIGN KEY (`blood_type_id`) REFERENCES `blood_types` (`blood_type_id`),
     CONSTRAINT `blood_units_donation_foreign` FOREIGN KEY (`donation_id`) REFERENCES `donations` (`donation_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -163,7 +148,7 @@ CREATE TABLE `blood_units` (
 CREATE TABLE `requests` (
     `request_id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     `hospital_id` INT UNSIGNED NOT NULL,
-    `blood_type_id` INT UNSIGNED NULL,
+    `blood_type` ENUM('A+','A-','B+','B-','AB+','AB-','O+','O-') NULL,
     `units_requested` INT UNSIGNED NOT NULL DEFAULT 1,
     `units_fulfilled` INT UNSIGNED NULL DEFAULT 0,
     `urgency` ENUM('Normal', 'Urgent', 'Emergency') NULL DEFAULT 'Normal',
@@ -172,42 +157,7 @@ CREATE TABLE `requests` (
     `requested_by` INT UNSIGNED NULL,
     `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
     `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP() ON UPDATE CURRENT_TIMESTAMP(),
-    CONSTRAINT `requests_hospital_id_foreign` FOREIGN KEY (`hospital_id`) REFERENCES `hospitals` (`hospital_id`),
-    CONSTRAINT `requests_blood_type_foreign` FOREIGN KEY (`blood_type_id`) REFERENCES `blood_types` (`blood_type_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- --------------------------------------------------------
--- Staff (blood bank internal staff)
--- --------------------------------------------------------
-
-CREATE TABLE `staff` (
-    `staff_id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    `user_id` INT UNSIGNED NOT NULL,
-    `employee_id` VARCHAR(20) NOT NULL,
-    `department` ENUM('Collection', 'Laboratory', 'Inventory', 'Administration', 'Nursing') NOT NULL,
-    `designation` VARCHAR(50) NOT NULL,
-    `qualification` VARCHAR(100) NULL,
-    `date_joined` DATE NOT NULL,
-    `is_verified` BOOLEAN NULL,
-    UNIQUE KEY `staff_user_id_unique` (`user_id`),
-    UNIQUE KEY `staff_employee_id_unique` (`employee_id`),
-    CONSTRAINT `staff_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- --------------------------------------------------------
--- Hospital Staff
--- --------------------------------------------------------
-
-CREATE TABLE `hospital_staff` (
-    `hospital_staff_id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    `user_id` INT UNSIGNED NOT NULL,
-    `hospital_id` INT UNSIGNED NOT NULL,
-    `department` VARCHAR(50) NOT NULL,
-    `designation` VARCHAR(50) NOT NULL,
-    `is_authorized_requester` BOOLEAN NULL COMMENT 'Can place blood requests',
-    UNIQUE KEY `hospital_staff_user_id_unique` (`user_id`),
-    CONSTRAINT `hospital_staff_user_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`),
-    CONSTRAINT `hospital_staff_hospital_foreign` FOREIGN KEY (`hospital_id`) REFERENCES `hospitals` (`hospital_id`)
+    CONSTRAINT `requests_hospital_id_foreign` FOREIGN KEY (`hospital_id`) REFERENCES `hospitals` (`hospital_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- --------------------------------------------------------
@@ -216,7 +166,7 @@ CREATE TABLE `hospital_staff` (
 
 CREATE TABLE `donor_health_history` (
     `history_id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    `donor_id` INT UNSIGNED NOT NULL,
+    `donor_id` INT UNSIGNED NOT NULL COMMENT 'References users.user_id for donor',
     `donation_id` INT UNSIGNED NULL,
     `checked_by` INT UNSIGNED NOT NULL,
     `check_date` DATE NOT NULL,
@@ -234,7 +184,7 @@ CREATE TABLE `donor_health_history` (
     `doctor_clearance` BOOLEAN NULL DEFAULT 1,
     `remarks` TEXT NULL,
     INDEX `donor_health_history_donor_id_check_date_index` (`donor_id`, `check_date`),
-    CONSTRAINT `donor_health_donor_foreign` FOREIGN KEY (`donor_id`) REFERENCES `donors` (`donor_id`),
+    CONSTRAINT `donor_health_donor_foreign` FOREIGN KEY (`donor_id`) REFERENCES `users` (`user_id`),
     CONSTRAINT `donor_health_checked_by_foreign` FOREIGN KEY (`checked_by`) REFERENCES `users` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -244,7 +194,8 @@ CREATE TABLE `donor_health_history` (
 
 CREATE TABLE `appointments` (
     `appointment_id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    `donor_id` INT UNSIGNED NOT NULL,
+    `donor_id` INT UNSIGNED NOT NULL COMMENT 'References users.user_id for donor',
+    `hospital_id` INT UNSIGNED NULL,
     `appointment_date` DATE NOT NULL,
     `appointment_time` TIME NOT NULL,
     `purpose` ENUM('Donation', 'Health Check', 'Consultation') NULL DEFAULT 'Donation',
@@ -253,7 +204,8 @@ CREATE TABLE `appointments` (
     `created_by` INT UNSIGNED NULL,
     `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
     INDEX `appointments_date_status_index` (`appointment_date`, `status`),
-    CONSTRAINT `appointments_donor_foreign` FOREIGN KEY (`donor_id`) REFERENCES `donors` (`donor_id`)
+    CONSTRAINT `appointments_donor_foreign` FOREIGN KEY (`donor_id`) REFERENCES `users` (`user_id`),
+    CONSTRAINT `appointments_hospital_foreign` FOREIGN KEY (`hospital_id`) REFERENCES `hospitals` (`hospital_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- --------------------------------------------------------
@@ -287,14 +239,12 @@ CREATE TABLE `blood_tests` (
 CREATE TABLE `request_items` (
     `request_item_id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     `request_id` INT UNSIGNED NOT NULL,
-    `blood_type_id` INT UNSIGNED NOT NULL,
-    `component_id` INT UNSIGNED NOT NULL,
+    `blood_type` ENUM('A+','A-','B+','B-','AB+','AB-','O+','O-') NOT NULL,
+    `component` ENUM('Whole Blood','Red Blood Cells','Platelets','Plasma','Cryoprecipitate') NOT NULL,
     `units_requested` INT UNSIGNED NOT NULL DEFAULT 1,
     `units_fulfilled` INT UNSIGNED NULL,
     `special_requirements` TEXT NULL COMMENT 'Irradiated, CMV negative, etc.',
-    CONSTRAINT `request_items_request_foreign` FOREIGN KEY (`request_id`) REFERENCES `requests` (`request_id`),
-    CONSTRAINT `request_items_blood_type_foreign` FOREIGN KEY (`blood_type_id`) REFERENCES `blood_types` (`blood_type_id`),
-    CONSTRAINT `request_items_component_foreign` FOREIGN KEY (`component_id`) REFERENCES `components` (`component_id`)
+    CONSTRAINT `request_items_request_foreign` FOREIGN KEY (`request_id`) REFERENCES `requests` (`request_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- --------------------------------------------------------

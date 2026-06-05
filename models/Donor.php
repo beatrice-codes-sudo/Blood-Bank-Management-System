@@ -2,6 +2,7 @@
 /**
  * Donor Model
  * Handles donor profiles and donation history
+ * Post-consolidation: queries users table directly (no donors table)
  */
 class DonorModel {
     private $db;
@@ -11,53 +12,24 @@ class DonorModel {
     }
 
     /**
-     * Create donor profile linked to user
-     */
-    public function create($data) {
-        $sql = "INSERT INTO donors (user_id, first_name, last_name, blood_type_id, date_of_birth, gender, address, city, eligibility_status)
-                VALUES (:user_id, :first_name, :last_name, :blood_type_id, :date_of_birth, :gender, :address, :city, :eligibility_status)";
-        
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute([
-            'user_id'            => $data['user_id'],
-            'first_name'         => $data['first_name'],
-            'last_name'          => $data['last_name'],
-            'blood_type_id'      => $data['blood_type_id'] ?? null,
-            'date_of_birth'      => $data['date_of_birth'] ?? null,
-            'gender'             => $data['gender'] ?? null,
-            'address'            => $data['address'] ?? null,
-            'city'               => $data['city'] ?? null,
-            'eligibility_status' => $data['eligibility_status'] ?? 'Eligible',
-        ]);
-
-        return $this->db->lastInsertId();
-    }
-
-    /**
      * Find donor by user ID
      */
     public function findByUserId($userId) {
-        $sql = "SELECT d.*, bt.type_name as blood_type, u.email, u.phone, u.username
-                FROM donors d 
-                LEFT JOIN blood_types bt ON d.blood_type_id = bt.blood_type_id
-                JOIN users u ON d.user_id = u.user_id
-                WHERE d.user_id = :user_id";
+        $sql = "SELECT * FROM users
+                WHERE user_id = :user_id AND role = 'Donor'";
         $stmt = $this->db->prepare($sql);
         $stmt->execute(['user_id' => $userId]);
         return $stmt->fetch();
     }
 
     /**
-     * Find donor by donor ID
+     * Find donor by user ID (alias for consistency)
      */
     public function findById($donorId) {
-        $sql = "SELECT d.*, bt.type_name as blood_type, u.email, u.phone, u.username
-                FROM donors d 
-                LEFT JOIN blood_types bt ON d.blood_type_id = bt.blood_type_id
-                JOIN users u ON d.user_id = u.user_id
-                WHERE d.donor_id = :donor_id";
+        $sql = "SELECT * FROM users
+                WHERE user_id = :user_id AND role = 'Donor'";
         $stmt = $this->db->prepare($sql);
-        $stmt->execute(['donor_id' => $donorId]);
+        $stmt->execute(['user_id' => $donorId]);
         return $stmt->fetch();
     }
 
@@ -65,11 +37,9 @@ class DonorModel {
      * Get all donors
      */
     public function getAll($limit = 50, $offset = 0) {
-        $sql = "SELECT d.*, bt.type_name as blood_type, u.email, u.phone, u.is_active, u.created_at as registered_at
-                FROM donors d 
-                LEFT JOIN blood_types bt ON d.blood_type_id = bt.blood_type_id
-                JOIN users u ON d.user_id = u.user_id
-                ORDER BY u.created_at DESC
+        $sql = "SELECT * FROM users
+                WHERE role = 'Donor'
+                ORDER BY created_at DESC
                 LIMIT :limit OFFSET :offset";
         $stmt = $this->db->prepare($sql);
         $stmt->bindValue('limit', (int)$limit, PDO::PARAM_INT);
@@ -82,80 +52,68 @@ class DonorModel {
      * Count all donors
      */
     public function countAll() {
-        $stmt = $this->db->query("SELECT COUNT(*) as total FROM donors");
+        $stmt = $this->db->query("SELECT COUNT(*) as total FROM users WHERE role = 'Donor'");
         return $stmt->fetch()['total'];
     }
 
     /**
      * Get donation history for a donor
      */
-    public function getDonationHistory($donorId) {
-        $sql = "SELECT dn.*, bt.type_name as blood_type
-                FROM donations dn
-                LEFT JOIN blood_types bt ON dn.blood_type_id = bt.blood_type_id
-                WHERE dn.donor_id = :donor_id
-                ORDER BY dn.donation_date DESC";
+    public function getDonationHistory($userId) {
+        $sql = "SELECT * FROM donations
+                WHERE donor_id = :user_id
+                ORDER BY donation_date DESC";
         $stmt = $this->db->prepare($sql);
-        $stmt->execute(['donor_id' => $donorId]);
+        $stmt->execute(['user_id' => $userId]);
         return $stmt->fetchAll();
     }
 
     /**
      * Get donation stats for a donor
      */
-    public function getStats($donorId) {
+    public function getStats($userId) {
         $stats = [];
 
         // Total donations
-        $stmt = $this->db->prepare("SELECT COUNT(*) as total FROM donations WHERE donor_id = :donor_id AND status = 'Completed'");
-        $stmt->execute(['donor_id' => $donorId]);
+        $stmt = $this->db->prepare("SELECT COUNT(*) as total FROM donations WHERE donor_id = :uid AND status = 'Completed'");
+        $stmt->execute(['uid' => $userId]);
         $stats['total_donations'] = $stmt->fetch()['total'];
 
         // Last donation date
-        $stmt = $this->db->prepare("SELECT MAX(donation_date) as last_date FROM donations WHERE donor_id = :donor_id AND status = 'Completed'");
-        $stmt->execute(['donor_id' => $donorId]);
+        $stmt = $this->db->prepare("SELECT MAX(donation_date) as last_date FROM donations WHERE donor_id = :uid AND status = 'Completed'");
+        $stmt->execute(['uid' => $userId]);
         $stats['last_donation_date'] = $stmt->fetch()['last_date'];
 
         // Total volume donated
-        $stmt = $this->db->prepare("SELECT COALESCE(SUM(volume_ml), 0) as total_volume FROM donations WHERE donor_id = :donor_id AND status = 'Completed'");
-        $stmt->execute(['donor_id' => $donorId]);
+        $stmt = $this->db->prepare("SELECT COALESCE(SUM(volume_ml), 0) as total_volume FROM donations WHERE donor_id = :uid AND status = 'Completed'");
+        $stmt->execute(['uid' => $userId]);
         $stats['total_volume_ml'] = $stmt->fetch()['total_volume'];
 
         return $stats;
     }
 
     /**
-     * Update donor profile (donors table + users table for email/phone)
+     * Update donor profile (all fields now on users table)
      */
-    public function update($donorId, $data) {
-        $sql = "UPDATE donors SET 
+    public function update($userId, $data) {
+        $sql = "UPDATE users SET 
                 first_name = :first_name, last_name = :last_name,
-                blood_type_id = :blood_type_id, date_of_birth = :date_of_birth,
-                gender = :gender, address = :address, city = :city
-                WHERE donor_id = :donor_id";
+                blood_type = :blood_type, date_of_birth = :date_of_birth,
+                gender = :gender, address = :address, city = :city,
+                email = :email, phone = :phone
+                WHERE user_id = :user_id";
         $stmt = $this->db->prepare($sql);
         return $stmt->execute([
-            'donor_id'      => $donorId,
+            'user_id'       => $userId,
             'first_name'    => $data['first_name'],
             'last_name'     => $data['last_name'],
-            'blood_type_id' => $data['blood_type_id'] ?? null,
+            'blood_type'    => $data['blood_type'] ?? null,
             'date_of_birth' => $data['date_of_birth'] ?? null,
             'gender'        => $data['gender'] ?? null,
             'address'       => $data['address'] ?? null,
             'city'          => $data['city'] ?? null,
-        ]);
-    }
-
-    /**
-     * Update user contact info (email, phone) from profile edit
-     */
-    public function updateUserContact($userId, $email, $phone) {
-        $sql = "UPDATE users SET email = :email, phone = :phone WHERE user_id = :user_id";
-        $stmt = $this->db->prepare($sql);
-        return $stmt->execute([
-            'user_id' => $userId,
-            'email'   => $email,
-            'phone'   => $phone,
+            'email'         => $data['email'] ?? null,
+            'phone'         => $data['phone'] ?? null,
         ]);
     }
 
@@ -166,27 +124,27 @@ class DonorModel {
         $stats = [];
 
         // Total donors
-        $stmt = $this->db->query("SELECT COUNT(*) as total FROM donors");
+        $stmt = $this->db->query("SELECT COUNT(*) as total FROM users WHERE role = 'Donor'");
         $stats['total'] = $stmt->fetch()['total'];
 
-        // Active donors (user is_active = 1)
-        $stmt = $this->db->query("SELECT COUNT(*) as total FROM donors d JOIN users u ON d.user_id = u.user_id WHERE u.is_active = 1");
+        // Active donors
+        $stmt = $this->db->query("SELECT COUNT(*) as total FROM users WHERE role = 'Donor' AND is_active = 1");
         $stats['active'] = $stmt->fetch()['total'];
 
         // Inactive donors
-        $stmt = $this->db->query("SELECT COUNT(*) as total FROM donors d JOIN users u ON d.user_id = u.user_id WHERE u.is_active = 0");
+        $stmt = $this->db->query("SELECT COUNT(*) as total FROM users WHERE role = 'Donor' AND is_active = 0");
         $stats['inactive'] = $stmt->fetch()['total'];
 
         // Eligible
-        $stmt = $this->db->query("SELECT COUNT(*) as total FROM donors WHERE eligibility_status = 'Eligible'");
+        $stmt = $this->db->query("SELECT COUNT(*) as total FROM users WHERE role = 'Donor' AND eligibility_status = 'Eligible'");
         $stats['eligible'] = $stmt->fetch()['total'];
 
         // Deferred
-        $stmt = $this->db->query("SELECT COUNT(*) as total FROM donors WHERE eligibility_status = 'Deferred'");
+        $stmt = $this->db->query("SELECT COUNT(*) as total FROM users WHERE role = 'Donor' AND eligibility_status = 'Deferred'");
         $stats['deferred'] = $stmt->fetch()['total'];
 
         // Permanently Deferred
-        $stmt = $this->db->query("SELECT COUNT(*) as total FROM donors WHERE eligibility_status = 'Permanently Deferred'");
+        $stmt = $this->db->query("SELECT COUNT(*) as total FROM users WHERE role = 'Donor' AND eligibility_status = 'Permanently Deferred'");
         $stats['permanently_deferred'] = $stmt->fetch()['total'];
 
         // Donors who have donated at least once
@@ -197,35 +155,19 @@ class DonorModel {
     }
 
     /**
-     * Get all blood types (for dropdowns)
+     * Delete donor (just delete from users — cascades handled by FK)
      */
-    public function getBloodTypes() {
-        $stmt = $this->db->query("SELECT * FROM blood_types ORDER BY blood_type_id");
-        return $stmt->fetchAll();
-    }
-
-    /**
-     * Delete donor and associated user record
-     */
-    public function delete($donorId) {
-        // Get user_id first
-        $stmt = $this->db->prepare("SELECT user_id FROM donors WHERE donor_id = :donor_id");
-        $stmt->execute(['donor_id' => $donorId]);
-        $donor = $stmt->fetch();
-
-        if (!$donor) return false;
-
-        // Delete user (donor cascades via FK ON DELETE CASCADE)
-        $stmt = $this->db->prepare("DELETE FROM users WHERE user_id = :user_id");
-        return $stmt->execute(['user_id' => $donor['user_id']]);
+    public function delete($userId) {
+        $stmt = $this->db->prepare("DELETE FROM users WHERE user_id = :user_id AND role = 'Donor'");
+        return $stmt->execute(['user_id' => $userId]);
     }
 
     /**
      * Update donor eligibility status
      */
-    public function updateEligibility($donorId, $status) {
-        $stmt = $this->db->prepare("UPDATE donors SET eligibility_status = :status WHERE donor_id = :donor_id");
-        return $stmt->execute(['status' => $status, 'donor_id' => $donorId]);
+    public function updateEligibility($userId, $status) {
+        $stmt = $this->db->prepare("UPDATE users SET eligibility_status = :status WHERE user_id = :user_id");
+        return $stmt->execute(['status' => $status, 'user_id' => $userId]);
     }
 
     // ================================================================
@@ -235,29 +177,29 @@ class DonorModel {
     /**
      * Get all appointments for a donor (joined with hospital info)
      */
-    public function getAppointments($donorId) {
+    public function getAppointments($userId) {
         $sql = "SELECT a.*, h.hospital_name, h.address as hospital_address, h.city as hospital_city
                 FROM appointments a
                 LEFT JOIN hospitals h ON a.hospital_id = h.hospital_id
-                WHERE a.donor_id = :donor_id
+                WHERE a.donor_id = :user_id
                 ORDER BY a.appointment_date DESC, a.appointment_time DESC";
         $stmt = $this->db->prepare($sql);
-        $stmt->execute(['donor_id' => $donorId]);
+        $stmt->execute(['user_id' => $userId]);
         return $stmt->fetchAll();
     }
 
     /**
      * Get a single appointment by ID (scoped to donor)
      */
-    public function getAppointmentById($appointmentId, $donorId) {
+    public function getAppointmentById($appointmentId, $userId) {
         $sql = "SELECT a.*, h.hospital_name, h.address as hospital_address
                 FROM appointments a
                 LEFT JOIN hospitals h ON a.hospital_id = h.hospital_id
-                WHERE a.appointment_id = :appointment_id AND a.donor_id = :donor_id";
+                WHERE a.appointment_id = :appointment_id AND a.donor_id = :user_id";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
             'appointment_id' => $appointmentId,
-            'donor_id'       => $donorId,
+            'user_id'        => $userId,
         ]);
         return $stmt->fetch();
     }
@@ -284,7 +226,7 @@ class DonorModel {
     /**
      * Reschedule an appointment (donor-only: update date, time, hospital)
      */
-    public function rescheduleAppointment($appointmentId, $donorId, $data) {
+    public function rescheduleAppointment($appointmentId, $userId, $data) {
         $sql = "UPDATE appointments SET
                 hospital_id = :hospital_id,
                 appointment_date = :appointment_date,
@@ -292,12 +234,12 @@ class DonorModel {
                 purpose = :purpose,
                 notes = :notes
                 WHERE appointment_id = :appointment_id
-                AND donor_id = :donor_id
+                AND donor_id = :user_id
                 AND status = 'Scheduled'";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
             'appointment_id'   => $appointmentId,
-            'donor_id'         => $donorId,
+            'user_id'          => $userId,
             'hospital_id'      => $data['hospital_id'] ?? null,
             'appointment_date' => $data['appointment_date'],
             'appointment_time' => $data['appointment_time'],
@@ -310,15 +252,15 @@ class DonorModel {
     /**
      * Cancel an appointment (donor-only, only if Scheduled)
      */
-    public function cancelAppointment($appointmentId, $donorId) {
+    public function cancelAppointment($appointmentId, $userId) {
         $sql = "UPDATE appointments SET status = 'Cancelled'
                 WHERE appointment_id = :appointment_id
-                AND donor_id = :donor_id
+                AND donor_id = :user_id
                 AND status = 'Scheduled'";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
             'appointment_id' => $appointmentId,
-            'donor_id'       => $donorId,
+            'user_id'        => $userId,
         ]);
         return $stmt->rowCount() > 0;
     }
@@ -326,27 +268,27 @@ class DonorModel {
     /**
      * Get appointment statistics for a donor
      */
-    public function getAppointmentStats($donorId) {
+    public function getAppointmentStats($userId) {
         $stats = [];
 
-        $stmt = $this->db->prepare("SELECT COUNT(*) as total FROM appointments WHERE donor_id = :did");
-        $stmt->execute(['did' => $donorId]);
+        $stmt = $this->db->prepare("SELECT COUNT(*) as total FROM appointments WHERE donor_id = :uid");
+        $stmt->execute(['uid' => $userId]);
         $stats['total'] = $stmt->fetch()['total'];
 
-        $stmt = $this->db->prepare("SELECT COUNT(*) as total FROM appointments WHERE donor_id = :did AND status = 'Scheduled'");
-        $stmt->execute(['did' => $donorId]);
+        $stmt = $this->db->prepare("SELECT COUNT(*) as total FROM appointments WHERE donor_id = :uid AND status = 'Scheduled'");
+        $stmt->execute(['uid' => $userId]);
         $stats['scheduled'] = $stmt->fetch()['total'];
 
-        $stmt = $this->db->prepare("SELECT COUNT(*) as total FROM appointments WHERE donor_id = :did AND status = 'Completed'");
-        $stmt->execute(['did' => $donorId]);
+        $stmt = $this->db->prepare("SELECT COUNT(*) as total FROM appointments WHERE donor_id = :uid AND status = 'Completed'");
+        $stmt->execute(['uid' => $userId]);
         $stats['completed'] = $stmt->fetch()['total'];
 
-        $stmt = $this->db->prepare("SELECT COUNT(*) as total FROM appointments WHERE donor_id = :did AND status = 'Cancelled'");
-        $stmt->execute(['did' => $donorId]);
+        $stmt = $this->db->prepare("SELECT COUNT(*) as total FROM appointments WHERE donor_id = :uid AND status = 'Cancelled'");
+        $stmt->execute(['uid' => $userId]);
         $stats['cancelled'] = $stmt->fetch()['total'];
 
-        $stmt = $this->db->prepare("SELECT COUNT(*) as total FROM appointments WHERE donor_id = :did AND status = 'No Show'");
-        $stmt->execute(['did' => $donorId]);
+        $stmt = $this->db->prepare("SELECT COUNT(*) as total FROM appointments WHERE donor_id = :uid AND status = 'No Show'");
+        $stmt->execute(['uid' => $userId]);
         $stats['no_show'] = $stmt->fetch()['total'];
 
         return $stats;
@@ -367,19 +309,19 @@ class DonorModel {
     /**
      * Get appointments for a specific month (for calendar rendering)
      */
-    public function getAppointmentsByMonth($donorId, $year, $month) {
+    public function getAppointmentsByMonth($userId, $year, $month) {
         $sql = "SELECT a.*, h.hospital_name
                 FROM appointments a
                 LEFT JOIN hospitals h ON a.hospital_id = h.hospital_id
-                WHERE a.donor_id = :donor_id
+                WHERE a.donor_id = :user_id
                 AND YEAR(a.appointment_date) = :year
                 AND MONTH(a.appointment_date) = :month
                 ORDER BY a.appointment_date ASC, a.appointment_time ASC";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
-            'donor_id' => $donorId,
-            'year'     => $year,
-            'month'    => $month,
+            'user_id' => $userId,
+            'year'    => $year,
+            'month'   => $month,
         ]);
         return $stmt->fetchAll();
     }

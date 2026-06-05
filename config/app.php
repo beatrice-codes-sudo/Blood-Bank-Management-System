@@ -8,10 +8,18 @@ define('APP_NAME', 'HemoLink');
 define('APP_TAGLINE', 'Blood Bank Management System');
 define('BASE_URL', '/BMS');
 
-// Roles
-define('ROLE_ADMIN', 1);
-define('ROLE_HOSPITAL', 2);
-define('ROLE_DONOR', 3);
+// Roles (match ENUM values in users.role)
+define('ROLE_ADMIN', 'Admin');
+define('ROLE_HOSPITAL', 'Hospital');
+define('ROLE_DONOR', 'Donor');
+
+// Blood Types (replaces blood_types table)
+define('BLOOD_TYPES', ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']);
+
+// Blood Components (replaces components table)
+define('BLOOD_COMPONENTS', [
+    'Whole Blood', 'Red Blood Cells', 'Platelets', 'Plasma', 'Cryoprecipitate'
+]);
 
 // Session config
 ini_set('session.cookie_httponly', 1);
