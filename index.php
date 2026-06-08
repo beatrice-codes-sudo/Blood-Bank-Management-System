@@ -99,8 +99,44 @@ switch ($page) {
         $admin->donorHistory();
         break;
 
-    // Placeholder pages for admin (sidebar links)
+    // === Admin Hospital Management ===
     case 'admin_hospitals':
+        $admin = new AdminController();
+        $admin->manageHospitals();
+        break;
+
+    case 'admin_hospital_profile':
+        $admin = new AdminController();
+        $admin->viewHospitalProfile();
+        break;
+
+    case 'admin_fulfill_request':
+        $admin = new AdminController();
+        $admin->fulfillRequest();
+        break;
+
+    case 'admin_delete_appointment':
+        $admin = new AdminController();
+        $admin->deleteAppointment();
+        break;
+
+    case 'admin_delete_hospital_request':
+        $admin = new AdminController();
+        $admin->deleteHospitalRequest();
+        break;
+
+    case 'admin_hospital_request_view':
+        $admin = new AdminController();
+        $admin->viewHospitalRequest();
+        break;
+
+    case 'admin_dispatch_units':
+        $admin = new AdminController();
+        $admin->dispatchUnits();
+        break;
+
+
+    // Placeholder pages for admin (sidebar links)
     case 'admin_inventory':
     case 'admin_requests':
     case 'admin_audit':
@@ -122,6 +158,7 @@ switch ($page) {
         $content = ob_get_clean();
         require_once __DIR__ . '/views/layouts/dashboard_layout.php';
         break;
+
 
     // === Hospital Dashboard ===
     case 'hospital_dashboard':

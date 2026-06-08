@@ -303,4 +303,100 @@ class HospitalModel {
         $stmt->execute(['request_id' => $requestId]);
         return $stmt->fetchAll();
     }
+
+    // ================================================================
+    // Admin-level Methods (no hospital-scope restriction)
+    // ================================================================
+
+    /**
+     * Get global hospital stats for the admin listing page
+     */
+    public function getGlobalStats() {
+        $stats = [];
+
+        $stmt = $this->db->query("SELECT COUNT(*) as total FROM hospitals");
+        $stats['total'] = $stmt->fetch()['total'];
+
+        $stmt = $this->db->query("SELECT COUNT(*) as total FROM hospitals WHERE is_active = 1");
+        $stats['active'] = $stmt->fetch()['total'];
+
+        $stmt = $this->db->query("SELECT COUNT(*) as total FROM hospitals WHERE is_active = 0");
+        $stats['inactive'] = $stmt->fetch()['total'];
+
+        return $stats;
+    }
+
+    /**
+     * Get all appointments for a hospital with donor info
+     */
+    public function getAppointments($hospitalId) {
+        $sql = "SELECT a.*,
+                u.first_name as donor_first, u.last_name as donor_last,
+                u.email as donor_email, u.phone as donor_phone,
+                u.blood_type as donor_blood_type
+                FROM appointments a
+                JOIN users u ON a.donor_id = u.user_id
+                WHERE a.hospital_id = :hospital_id
+                ORDER BY a.appointment_date DESC, a.appointment_time DESC";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['hospital_id' => $hospitalId]);
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Delete an appointment (admin action — no scope restriction)
+     */
+    public function deleteAppointment($appointmentId) {
+        $sql = "DELETE FROM appointments WHERE appointment_id = :id";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['id' => $appointmentId]);
+        return $stmt->rowCount() > 0;
+    }
+
+    /**
+     * Fulfill a blood request (admin action — sets status to Fulfilled)
+     */
+    public function fulfillRequest($requestId) {
+        $sql = "UPDATE requests SET
+                status = 'Fulfilled',
+                units_fulfilled = units_requested,
+                updated_at = NOW()
+                WHERE request_id = :request_id";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['request_id' => $requestId]);
+        return $stmt->rowCount() > 0;
+    }
+
+    /**
+     * Get a single request by ID (admin — no hospital scope)
+     */
+    public function getRequestByIdAdmin($requestId) {
+        $sql = "SELECT r.*,
+                u.first_name as requester_first, u.last_name as requester_last,
+                u.email as requester_email, u.phone as requester_phone,
+                h.hospital_name
+                FROM requests r
+                LEFT JOIN users u ON r.requested_by = u.user_id
+                LEFT JOIN hospitals h ON r.hospital_id = h.hospital_id
+                WHERE r.request_id = :request_id";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['request_id' => $requestId]);
+        return $stmt->fetch();
+    }
+
+    /**
+     * Delete a blood request (admin action — no status restriction)
+     */
+    public function deleteRequestAdmin($requestId) {
+        // First delete related request_items
+        $sql = "DELETE FROM request_items WHERE request_id = :id";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['id' => $requestId]);
+
+        // Then delete the request itself
+        $sql = "DELETE FROM requests WHERE request_id = :id";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['id' => $requestId]);
+        return $stmt->rowCount() > 0;
+    }
 }

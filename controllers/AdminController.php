@@ -234,4 +234,185 @@ class AdminController {
         echo json_encode(['history' => $history]);
         exit;
     }
+
+    // ================================================================
+    // Hospital Management
+    // ================================================================
+
+    /**
+     * Show hospitals management page
+     */
+    public function manageHospitals() {
+        requireRole(ROLE_ADMIN);
+
+        $hospitals = $this->hospitalModel->getAll(200, 0);
+        $stats = $this->hospitalModel->getGlobalStats();
+
+        require_once __DIR__ . '/../views/admin/hospitals.php';
+    }
+
+    /**
+     * View a single hospital's profile page
+     */
+    public function viewHospitalProfile() {
+        requireRole(ROLE_ADMIN);
+
+        $hospitalId = (int)($_GET['hospital_id'] ?? 0);
+        if (!$hospitalId) {
+            redirect('admin_hospitals', 'Invalid hospital ID', 'error');
+        }
+
+        $hospital = $this->hospitalModel->findById($hospitalId);
+        if (!$hospital) {
+            redirect('admin_hospitals', 'Hospital not found', 'error');
+        }
+
+        $requests     = $this->hospitalModel->getAllRequests($hospitalId);
+        $requestStats = $this->hospitalModel->getExtendedRequestStats($hospitalId);
+        $appointments = $this->hospitalModel->getAppointments($hospitalId);
+
+        require_once __DIR__ . '/../views/admin/hospital_profile.php';
+    }
+
+    /**
+     * Fulfill a blood request (admin action)
+     */
+    public function fulfillRequest() {
+        requireRole(ROLE_ADMIN);
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirect('admin_hospitals');
+        }
+
+        $requestId  = (int)($_POST['request_id'] ?? 0);
+        $hospitalId = (int)($_POST['hospital_id'] ?? 0);
+
+        if (!$requestId || !$hospitalId) {
+            redirect('admin_hospitals', 'Invalid request', 'error');
+        }
+
+        try {
+            $this->hospitalModel->fulfillRequest($requestId);
+            redirect('admin_hospital_profile&hospital_id=' . $hospitalId, 'Blood request fulfilled successfully', 'success');
+        } catch (Exception $e) {
+            redirect('admin_hospital_profile&hospital_id=' . $hospitalId, 'Error fulfilling request: ' . $e->getMessage(), 'error');
+        }
+    }
+
+    /**
+     * Delete an appointment (admin action)
+     */
+    public function deleteAppointment() {
+        requireRole(ROLE_ADMIN);
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirect('admin_hospitals');
+        }
+
+        $appointmentId = (int)($_POST['appointment_id'] ?? 0);
+        $hospitalId    = (int)($_POST['hospital_id'] ?? 0);
+
+        if (!$appointmentId || !$hospitalId) {
+            redirect('admin_hospitals', 'Invalid appointment', 'error');
+        }
+
+        try {
+            $this->hospitalModel->deleteAppointment($appointmentId);
+            redirect('admin_hospital_profile&hospital_id=' . $hospitalId, 'Appointment deleted successfully', 'success');
+        } catch (Exception $e) {
+            redirect('admin_hospital_profile&hospital_id=' . $hospitalId, 'Error deleting appointment: ' . $e->getMessage(), 'error');
+        }
+    }
+
+    /**
+     * Delete a blood request (admin action — no status restriction)
+     */
+    public function deleteHospitalRequest() {
+        requireRole(ROLE_ADMIN);
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirect('admin_hospitals');
+        }
+
+        $requestId  = (int)($_POST['request_id'] ?? 0);
+        $hospitalId = (int)($_POST['hospital_id'] ?? 0);
+
+        if (!$requestId || !$hospitalId) {
+            redirect('admin_hospitals', 'Invalid request', 'error');
+        }
+
+        try {
+            $this->hospitalModel->deleteRequestAdmin($requestId);
+            redirect('admin_hospital_profile&hospital_id=' . $hospitalId, 'Blood request deleted successfully', 'success');
+        } catch (Exception $e) {
+            redirect('admin_hospital_profile&hospital_id=' . $hospitalId, 'Error deleting request: ' . $e->getMessage(), 'error');
+        }
+    }
+
+    /**
+     * View single request details (AJAX/JSON — admin level)
+     */
+    public function viewHospitalRequest() {
+        requireRole(ROLE_ADMIN);
+
+        $requestId = (int)($_GET['request_id'] ?? 0);
+        $request = $this->hospitalModel->getRequestByIdAdmin($requestId);
+
+        if (!$request) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Request not found']);
+            exit;
+        }
+
+        // Fetch available count in inventory for this blood type
+        $bloodInventory = new BloodInventory();
+        $availableUnits = 0;
+        if (!empty($request['blood_type'])) {
+            $availableUnits = $bloodInventory->getAvailableCountByType($request['blood_type']);
+        }
+
+        header('Content-Type: application/json');
+        echo json_encode([
+            'request'         => $request,
+            'available_units' => $availableUnits
+        ]);
+        exit;
+    }
+
+    /**
+     * Dispatch blood units for a request and update request status (POST)
+     */
+    public function dispatchUnits() {
+        requireRole(ROLE_ADMIN);
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirect('admin_hospitals');
+        }
+
+        $requestId       = (int)($_POST['request_id'] ?? 0);
+        $hospitalId      = (int)($_POST['hospital_id'] ?? 0);
+        $unitsToDispatch = (int)($_POST['units_to_dispatch'] ?? 0);
+        $targetStatus    = trim($_POST['status'] ?? 'Pending');
+
+        if (!$requestId || !$hospitalId || $unitsToDispatch < 0) {
+            redirect('admin_hospitals', 'Invalid parameters', 'error');
+        }
+
+        $request = $this->hospitalModel->getRequestByIdAdmin($requestId);
+        if (!$request) {
+            redirect('admin_hospitals', 'Request not found', 'error');
+        }
+
+        $bloodInventory = new BloodInventory();
+        $adminId = $_SESSION['user_id'];
+        $bloodType = $request['blood_type'];
+
+        $result = $bloodInventory->dispatchUnitsForRequest($requestId, $hospitalId, $adminId, $bloodType, $unitsToDispatch, $targetStatus);
+
+        if ($result['success']) {
+            redirect('admin_hospital_profile&hospital_id=' . $hospitalId, $result['message'], 'success');
+        } else {
+            redirect('admin_hospital_profile&hospital_id=' . $hospitalId, $result['message'], 'error');
+        }
+    }
 }

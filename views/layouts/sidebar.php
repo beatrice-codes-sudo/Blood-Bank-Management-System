@@ -54,7 +54,7 @@ $userInitials = strtoupper(substr($_SESSION['first_name'] ?? 'U', 0, 1) . substr
                 <span>Donors</span>
             </a>
             <a href="<?php echo BASE_URL; ?>/index.php?page=admin_hospitals" 
-               class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-fast <?php echo $currentPage === 'admin_hospitals' ? 'active' : 'text-hemo-charcoal'; ?>">
+               class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-fast <?php echo in_array($currentPage, ['admin_hospitals', 'admin_hospital_profile']) ? 'active' : 'text-hemo-charcoal'; ?>">
                 <i class="fas fa-hospital w-5 text-center"></i>
                 <span>Hospitals</span>
             </a>

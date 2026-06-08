@@ -45,3 +45,14 @@ the appointment should be booked with a hospital.
 also the donors history should be implemented
 and the profile page implemented as well.
 the donr should be able to edit their profile and save the changes.
+
+
+ADMIN SIDE.
+On the hospital page on the admins dahboard lets ensure that the hospital name has a hyperlink that takes you to the hospital profile page.the profile should be viewable by the admin. it should have a list of all the blood requests made by that hospital, a list of all the appointments made by that hospital, a list of all the inventory of that hospital, etc. 
+In the hospital profile on the admins dashboard ensure that the list of blood requests made by that hospital is clickable and takes you to the blood request page for that specific blood request.ensure that all the buttons work, use the design layout provided in the DesignLayout.md file as a reference for the design and also ensure that the page is responsive and works on all devices.the admin should have the ability to fulfill the requetsmade by hospitals and also the ability to delete the appointments made by hospitals.Also see the hospitals registered.On the hospital profile page there should be a section for stats for each hospital, such as the total number of blood requests, the number of active blood requests, the number of inactive blood requests, the number of blood requests that have been fulfilled.The page should show the contact info, address, email, contact person, phone number, type of hospital and display the urgency level of the blood request, which can be  'low','medium','high','critical' and when it was requested.The hospital manager in charge of the making the requests should be able to update the status of the blood request to fulfilled and also the ability to delete the blood request and their contact info made available to the admin.Dont put unnecessary KPI's on the page.
+
+
+Admin correction mode;
+On the hospital profile page where the admin is able to view the blood request details.The admin should be able to choose the number of units that are required to be dispatched to the hospital based on their request  if the units are available in the inventory  the units should be dispatched immediately and the status of the blood request updated whether fulfilled,pending,partially fulfilled or rejected
+If the units are not available the status of the blood request should be updated to pending and the hospital manager should be notified.
+use the design layout provided in the DesignLayout.md file as a reference for the design  ignoring the accents , also ensure that the page is responsive and works on all devices.
