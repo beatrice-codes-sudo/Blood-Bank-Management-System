@@ -2,6 +2,8 @@
 /**
  * Application Bootstrap
  * Include this file at the top of index.php to load everything
+ * this file ensures that all the required files are loaded and all the required functions are defined
+ * 
  */
 
 // Load configuration (must be before session_start for session ini settings)

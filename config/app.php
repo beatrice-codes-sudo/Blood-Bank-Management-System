@@ -1,6 +1,7 @@
 <?php
 /**
  * Application Configuration
+ * this file defines all the constants used in the application
  */
 
 // Application
