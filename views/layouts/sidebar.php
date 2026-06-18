@@ -58,11 +58,6 @@ $userInitials = strtoupper(substr($_SESSION['first_name'] ?? 'U', 0, 1) . substr
                 <i class="fas fa-hospital w-5 text-center"></i>
                 <span>Hospitals</span>
             </a>
-            <a href="<?php echo BASE_URL; ?>/index.php?page=admin_inventory" 
-               class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-fast <?php echo $currentPage === 'admin_inventory' ? 'active' : 'text-hemo-charcoal'; ?>">
-                <i class="fas fa-droplet w-5 text-center"></i>
-                <span>Blood Inventory</span>
-            </a>
             <a href="<?php echo BASE_URL; ?>/index.php?page=admin_requests" 
                class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-fast <?php echo $currentPage === 'admin_requests' ? 'active' : 'text-hemo-charcoal'; ?>">
                 <i class="fas fa-clipboard-list w-5 text-center"></i>

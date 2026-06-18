@@ -135,10 +135,23 @@ switch ($page) {
         $admin->dispatchUnits();
         break;
 
+    // === Admin Requests Management ===
+    case 'admin_requests_donor':
+        $admin = new AdminController();
+        $admin->getRequestByUserId();
+        break;
+    case 'admin_requests_hospital':
+        $admin = new AdminController();
+        $admin->getRequestByHospitalId();
+        break;
+
+    case 'admin_requests':
+        $admin = new AdminController();
+        $admin->listRequests();
+        break;
 
     // Placeholder pages for admin (sidebar links)
     case 'admin_inventory':
-    case 'admin_requests':
     case 'admin_audit':
         requireRole(ROLE_ADMIN);
         $pageTitle = ucwords(str_replace('admin_', '', $page));

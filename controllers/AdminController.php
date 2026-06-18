@@ -9,12 +9,14 @@ class AdminController {
     private $donorModel;
     private $hospitalModel;
     private $bloodInventory;
+    private $requestModel;
 
     public function __construct() {
         $this->userModel = new User();
         $this->donorModel = new DonorModel();
         $this->hospitalModel = new HospitalModel();
         $this->bloodInventory = new BloodInventory();
+        $this->requestModel = new RequestsModel();
     }
 
     /**
@@ -415,4 +417,118 @@ class AdminController {
             redirect('admin_hospital_profile&hospital_id=' . $hospitalId, $result['message'], 'error');
         }
     }
+
+    //list all requests for a user (Donor or Hospital)
+    public function listRequests() {
+        requireRole(ROLE_ADMIN);
+
+        $search = trim($_GET['search'] ?? '');
+        $status = trim($_GET['status'] ?? '');
+
+        $page = isset($_GET['p']) ? (int)$_GET['p'] : 1;
+        if ($page < 1) $page = 1;
+        $limit = 10; // Items per page
+        $offset = ($page - 1) * $limit;
+
+        $requests = $this->requestModel->getAllRequests($limit, $offset, $search, $status);
+        $totalRequests = $this->requestModel->getTotalRequestsCount($search, $status);
+        $totalPages = ceil($totalRequests / $limit);
+
+        require_once __DIR__ . '/../views/admin/requests.php';
+    }
+
+    //get request by blood type
+    public function getRequestByBloodType() {
+        requireRole(ROLE_ADMIN);
+
+        $bloodType = $_GET['blood_type'] ?? '';
+        $requests = $this->requestModel->getRequestByBloodType($bloodType);
+
+        require_once __DIR__ . '/../views/admin/requests.php';
+    }
+    //get request by blood type and status
+    public function getRequestByBloodTypeAndStatus() {
+        requireRole(ROLE_ADMIN);
+
+        $bloodType = $_GET['blood_type'] ?? '';
+        $status = $_GET['status'] ?? '';
+        $requests = $this->requestModel->getRequestByBloodTypeAndStatus($bloodType, $status);
+
+        require_once __DIR__ . '/../views/admin/requests.php';
+    }
+
+    //get request by id
+    public function getRequestById() {
+        requireRole(ROLE_ADMIN);
+
+        $requestId = (int)($_GET['request_id'] ?? 0);
+        $request = $this->requestModel->getRequestById($requestId);
+
+        require_once __DIR__ . '/../views/admin/requests.php';
+    }
+    
+    //get request by user id
+    public function getRequestByUserId() {
+        requireRole(ROLE_ADMIN);
+
+        $userId = (int)($_GET['user_id'] ?? 0);
+        $requests = $this->requestModel->getRequestByUserId($userId);
+
+        require_once __DIR__ . '/../views/admin/requests.php';
+    }
+    //get request by hospital id
+    public function getRequestByHospitalId() {
+        requireRole(ROLE_ADMIN);
+
+        $hospitalId = (int)($_GET['hospital_id'] ?? 0);
+        $requests = $this->requestModel->getRequestByHospitalId($hospitalId);
+
+        require_once __DIR__ . '/../views/admin/requests.php';
+    }
+    
+    //delete request by admin
+    public function deleteRequest() {
+        requireRole(ROLE_ADMIN);
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirect('admin_requests');
+        }
+
+        $requestId = (int)($_POST['request_id'] ?? 0);
+
+        if (!$requestId) {
+            redirect('admin_requests', 'Invalid request', 'error');
+        }
+
+        try {
+            $this->requestModel->deleteRequest($requestId);
+            redirect('admin_requests', 'Request deleted successfully', 'success');
+        } catch (Exception $e) {
+            redirect('admin_requests', 'Error deleting request: ' . $e->getMessage(), 'error');
+        }
+    }
+
+    //update request by admin
+    public function updateRequest() {
+        requireRole(ROLE_ADMIN);
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirect('admin_requests');
+        }
+
+        $requestId = (int)($_POST['request_id'] ?? 0);
+        $data = $_POST;
+
+        if (!$requestId) {
+            redirect('admin_requests', 'Invalid request', 'error');
+        }
+
+        try {
+            $this->requestModel->updateRequest($requestId, $data);
+            redirect('admin_requests', 'Request updated successfully', 'success');
+        } catch (Exception $e) {
+            redirect('admin_requests', 'Error updating request: ' . $e->getMessage(), 'error');
+        }
+    }
+    
 }

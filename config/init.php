@@ -18,6 +18,7 @@ require_once __DIR__ . '/../models/User.php';
 require_once __DIR__ . '/../models/Donor.php';
 require_once __DIR__ . '/../models/Hospital.php';
 require_once __DIR__ . '/../models/BloodInventory.php';
+require_once __DIR__ . '/../models/Requests.php';
 
 // Load controllers
 require_once __DIR__ . '/../controllers/AuthController.php';
@@ -92,4 +93,19 @@ function getFlashMessage() {
  */
 function sanitize($input) {
     return htmlspecialchars(trim($input), ENT_QUOTES, 'UTF-8');
+}
+
+function getBloodTypeColorClass($bloodType) {
+    $colors = [
+        'A+' => 'bg-green-100 text-green-800',
+        'A-' => 'bg-green-200 text-green-900',
+        'B+' => 'bg-yellow-100 text-yellow-800',
+        'B-' => 'bg-yellow-200 text-yellow-900',
+        'AB+' => 'bg-purple-100 text-purple-800',
+        'AB-' => 'bg-purple-200 text-purple-900',
+        'O+' => 'bg-red-100 text-red-800',
+        'O-' => 'bg-red-200 text-red-900'
+    ];
+    
+    return $colors[$bloodType] ?? 'bg-gray-100 text-gray-800';
 }

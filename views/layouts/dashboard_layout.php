@@ -1,6 +1,6 @@
 <?php
 /**
- * Dashboard Layout Wrapper
+ * Dashboard Layout Wrapper for the admin dashboard
  * Sidebar + main content area
  */
 require_once __DIR__ . '/header.php';
