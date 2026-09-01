@@ -152,7 +152,6 @@ switch ($page) {
 
     // Placeholder pages for admin (sidebar links)
     case 'admin_inventory':
-    case 'admin_audit':
         requireRole(ROLE_ADMIN);
         $pageTitle = ucwords(str_replace('admin_', '', $page));
         ob_start();
