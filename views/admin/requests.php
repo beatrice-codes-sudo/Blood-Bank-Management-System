@@ -330,7 +330,7 @@ async function submitVerifyPin(e) {
         const data = await response.json();
 
         if (data.success) {
-            alert('✅ ' + data.message);
+            alert(data.message);
             window.location.reload();
         } else {
             errBox.textContent = data.message || 'Invalid PIN entered.';

@@ -16,8 +16,6 @@ require_once __DIR__ . '/../layouts/header.php';
         <!-- Decorative blobs -->
         <div class="absolute top-10 left-10 w-72 h-72 bg-white/5 rounded-full blur-3xl"></div>
         <div class="absolute bottom-20 right-20 w-96 h-96 bg-white/3 rounded-full blur-3xl"></div>
-        <div class="absolute top-1/3 right-1/3 w-3 h-3 bg-hemo-gold rounded-full pulse-dot"></div>
-        <div class="absolute bottom-1/3 left-1/4 w-2 h-2 bg-white/40 rounded-full pulse-dot" style="animation-delay: 0.7s"></div>
 
         <div class="relative z-10 text-center px-12 max-w-lg">
             <!-- Logo -->

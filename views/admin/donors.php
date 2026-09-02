@@ -152,20 +152,15 @@ ob_start();
                         <td class="px-6 py-4">
                             <?php 
                             $eligClass = 'bg-gray-100 text-gray-700';
-                            $eligDot = 'bg-gray-500';
                             if ($donor['eligibility_status'] === 'Eligible') {
                                 $eligClass = 'bg-green-100 text-hemo-success';
-                                $eligDot = 'bg-hemo-success';
                             } elseif ($donor['eligibility_status'] === 'Deferred') {
                                 $eligClass = 'bg-amber-100 text-hemo-amber';
-                                $eligDot = 'bg-hemo-amber';
                             } elseif ($donor['eligibility_status'] === 'Permanently Deferred') {
                                 $eligClass = 'bg-red-100 text-hemo-warning';
-                                $eligDot = 'bg-hemo-warning';
                             }
                             ?>
-                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold <?php echo $eligClass; ?> donor-eligibility">
-                                <span class="w-1.5 h-1.5 rounded-full <?php echo $eligDot; ?>"></span> 
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold <?php echo $eligClass; ?> donor-eligibility">
                                 <?php echo sanitize($donor['eligibility_status']); ?>
                             </span>
                         </td>

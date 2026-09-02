@@ -191,11 +191,6 @@ ob_start();
                     <tr class="table-row border-b border-hemo-border last:border-0 transition-fast">
                         <td class="px-6 py-4">
                             <span class="text-sm font-mono text-hemo-red font-semibold block">#REQ-<?php echo str_pad($req['request_id'], 4, '0', STR_PAD_LEFT); ?></span>
-                            <?php if (($req['collection_status'] ?? '') === 'Ready for Pickup' && !empty($req['release_pin'])): ?>
-                                <span class="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-50 border border-amber-300 text-amber-900 font-mono font-bold text-[11px]" title="Provide this PIN to Central Blood Bank staff at pickup">
-                                    <i class="fas fa-key text-[9px] text-amber-600"></i> PIN: <?php echo sanitize($req['release_pin']); ?>
-                                </span>
-                            <?php endif; ?>
                         </td>
                         <td class="px-6 py-4">
                             <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-hemo-red text-white text-xs font-bold">
@@ -227,8 +222,7 @@ ob_start();
                                 $dispStatus = 'Fulfilled (Received)';
                             }
                             ?>
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold <?php echo $sc; ?>">
-                                <span class="w-1.5 h-1.5 rounded-full bg-current"></span>
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold <?php echo $sc; ?>">
                                 <?php echo sanitize($dispStatus); ?>
                             </span>
                         </td>

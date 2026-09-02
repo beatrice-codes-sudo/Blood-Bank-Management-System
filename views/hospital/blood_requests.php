@@ -87,23 +87,9 @@ ob_start();
                     <?php foreach ($requests as $req): ?>
                     <tr class="hover:bg-hemo-off-white transition-fast request-row">
                         <td class="px-6 py-4">
-                            <div class="flex items-center gap-3">
-                                <div>
-                                    <p class="text-sm font-bold text-hemo-navy leading-none request-id">REQ-<?php echo str_pad($req['request_id'], 4, '0', STR_PAD_LEFT); ?></p>
-                                    <?php if (($req['collection_status'] ?? '') === 'Ready for Pickup' && !empty($req['release_pin'])): ?>
-                                        <div class="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-50 border border-amber-300 text-amber-900 text-xs font-mono font-bold shadow-sm" title="Show this PIN to Central Blood Bank staff upon collection">
-                                            <i class="fas fa-key text-[10px] text-amber-600"></i>
-                                            <span>PIN: <?php echo sanitize($req['release_pin']); ?></span>
-                                        </div>
-                                    <?php elseif (($req['collection_status'] ?? '') === 'Collected'): ?>
-                                        <div class="mt-1.5 inline-flex items-center gap-1 text-[11px] text-hemo-success font-semibold">
-                                            <i class="fas fa-check-double text-[10px]"></i> Collected
-                                        </div>
-                                    <?php endif; ?>
-                                    <div class="flex items-center gap-2 mt-1 hidden request-notes">
-                                        <?php echo sanitize($req['notes'] ?? ''); ?>
-                                    </div>
-                                </div>
+                            <p class="text-sm font-bold text-hemo-navy leading-none request-id">REQ-<?php echo str_pad($req['request_id'], 4, '0', STR_PAD_LEFT); ?></p>
+                            <div class="flex items-center gap-2 mt-1 hidden request-notes">
+                                <?php echo sanitize($req['notes'] ?? ''); ?>
                             </div>
                         </td>
                         <td class="px-6 py-4">
@@ -141,34 +127,26 @@ ob_start();
                         <td class="px-6 py-4">
                             <?php 
                             $statusClass = 'bg-gray-100 text-gray-700';
-                            $statusDot = 'bg-gray-500';
                             $displayStatus = $req['status'];
 
                             if (($req['collection_status'] ?? '') === 'Ready for Pickup') {
                                 $statusClass = 'bg-amber-100 text-amber-800 border border-amber-300';
-                                $statusDot = 'bg-amber-600 animate-pulse';
                                 $displayStatus = 'Ready for Pickup';
                             } elseif ($req['status'] === 'Dispatched' || ($req['collection_status'] ?? '') === 'Dispatched') {
                                 $statusClass = 'bg-indigo-100 text-indigo-700 border border-indigo-200';
-                                $statusDot = 'bg-indigo-600 animate-pulse';
                                 $displayStatus = 'In Transit';
                             } elseif ($req['status'] === 'Pending' || $req['status'] === 'Processing') {
                                 $statusClass = 'bg-amber-100 text-hemo-amber';
-                                $statusDot = 'bg-hemo-amber';
                             } elseif ($req['status'] === 'Fulfilled' || ($req['collection_status'] ?? '') === 'Received') {
                                 $statusClass = 'bg-green-100 text-hemo-success';
-                                $statusDot = 'bg-hemo-success';
                                 $displayStatus = 'Fulfilled (Received)';
                             } elseif ($req['status'] === 'Partially Fulfilled') {
                                 $statusClass = 'bg-blue-100 text-blue-500';
-                                $statusDot = 'bg-blue-500';
                             } elseif ($req['status'] === 'Rejected' || $req['status'] === 'Cancelled') {
                                 $statusClass = 'bg-red-100 text-hemo-warning';
-                                $statusDot = 'bg-hemo-warning';
                             }
                             ?>
-                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold <?php echo $statusClass; ?> request-status">
-                                <span class="w-1.5 h-1.5 rounded-full <?php echo $statusDot; ?>"></span> 
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold <?php echo $statusClass; ?> request-status">
                                 <?php echo sanitize($displayStatus); ?>
                             </span>
                         </td>
@@ -198,9 +176,6 @@ ob_start();
                                 <i class="fas fa-edit text-sm"></i>
                             </button>
                             <?php endif; ?>
-                            <button onclick="viewHistory(<?php echo $req['request_id']; ?>)" class="p-2 rounded-lg bg-hemo-light-gray text-hemo-charcoal hover:bg-green-50 hover:text-hemo-success transition-fast" title="Fulfillment History">
-                                <i class="fas fa-clock-rotate-left text-sm"></i>
-                            </button>
                             <?php if (in_array($req['status'], ['Pending', 'Cancelled'])): ?>
                             <button onclick="openDeleteModal(<?php echo $req['request_id']; ?>)" class="p-2 rounded-lg bg-hemo-light-gray text-hemo-charcoal hover:bg-red-50 hover:text-hemo-warning transition-fast" title="Delete Request">
                                 <i class="fas fa-trash text-sm"></i>
@@ -378,36 +353,6 @@ ob_start();
                 </button>
             </div>
         </form>
-    </div>
-</div>
-
-<!-- View History Modal -->
-<div id="historyRequestModal" class="fixed inset-0 bg-hemo-navy/50 backdrop-blur-sm z-[1001] hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[80vh] flex flex-col transform scale-95 transition-transform duration-300">
-        <div class="px-6 py-4 border-b border-hemo-border flex items-center justify-between bg-hemo-off-white rounded-t-xl">
-            <h3 class="text-lg font-semibold text-hemo-navy"><i class="fas fa-clock-rotate-left text-hemo-success mr-2"></i> Fulfillment History</h3>
-            <button type="button" onclick="closeModal('historyRequestModal')" class="text-hemo-gray hover:text-hemo-red transition-fast"><i class="fas fa-times text-lg"></i></button>
-        </div>
-        <div class="p-0 overflow-y-auto flex-1">
-            <div id="historyLoader" class="flex justify-center py-12">
-                <i class="fas fa-spinner fa-spin text-3xl text-hemo-red"></i>
-            </div>
-            <div id="historyContent" class="hidden">
-                <table class="w-full text-left border-collapse">
-                    <thead class="sticky top-0 bg-hemo-light-gray">
-                        <tr>
-                            <th class="px-6 py-3 text-xs font-semibold text-hemo-gray uppercase">Date</th>
-                            <th class="px-6 py-3 text-xs font-semibold text-hemo-gray uppercase">Method</th>
-                            <th class="px-6 py-3 text-xs font-semibold text-hemo-gray uppercase">Receiver</th>
-                            <th class="px-6 py-3 text-xs font-semibold text-hemo-gray uppercase">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="historyTableBody" class="divide-y divide-hemo-border">
-                        <!-- Populated via JS -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
     </div>
 </div>
 
@@ -698,51 +643,10 @@ ob_start();
         document.getElementById('viewLoader').classList.add('hidden');
         document.getElementById('viewContent').classList.remove('hidden');
     }
-
-    // AJAX for History
-    async function viewHistory(id) {
-        openModal('historyRequestModal');
-        document.getElementById('historyLoader').classList.remove('hidden');
-        document.getElementById('historyContent').classList.add('hidden');
-
-        try {
-            const res = await fetch(`<?php echo BASE_URL; ?>/index.php?page=hospital_request_history&request_id=${id}`);
-            const data = await res.json();
-            
-            const tbody = document.getElementById('historyTableBody');
-            tbody.innerHTML = '';
-            
-            if (data.distributions && data.distributions.length > 0) {
-                data.distributions.forEach(d => {
-                    let statusClass = d.is_delivered ? 'bg-green-100 text-hemo-success' : 'bg-amber-100 text-hemo-amber';
-                    let statusText = d.is_delivered ? 'Delivered' : 'Dispatched / En Route';
-                    
-                    tbody.innerHTML += `
-                        <tr class="hover:bg-hemo-off-white">
-                            <td class="px-6 py-4 text-sm font-semibold text-hemo-navy">${d.dispatched_date}</td>
-                            <td class="px-6 py-4 text-sm text-hemo-charcoal">${d.transport_method}</td>
-                            <td class="px-6 py-4 text-sm text-hemo-charcoal">${d.receiver_name || 'Pending'}</td>
-                            <td class="px-6 py-4">
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${statusClass}">
-                                    ${statusText}
-                                </span>
-                            </td>
-                        </tr>
-                    `;
-                });
-            } else {
-                tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-12 text-center text-hemo-gray italic">No distribution history found for this request.</td></tr>`;
-            }
-        } catch (e) {
-            document.getElementById('historyTableBody').innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-hemo-warning">Failed to load history.</td></tr>`;
-        }
-        
-        document.getElementById('historyLoader').classList.add('hidden');
-        document.getElementById('historyContent').classList.remove('hidden');
-    }
 </script>
 
 <?php
 $content = ob_get_clean();
 require_once __DIR__ . '/../layouts/hospital_layout.php';
 ?>
+

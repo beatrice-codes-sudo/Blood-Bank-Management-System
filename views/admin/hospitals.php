@@ -146,13 +146,9 @@ $flash = getFlashMessage();
                         </td>
                         <td class="px-6 py-4">
                             <?php if ($h['is_active']): ?>
-                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-hemo-success hospital-status">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-hemo-success"></span> Active
-                                </span>
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-hemo-success hospital-status">Active</span>
                             <?php else: ?>
-                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-hemo-warning hospital-status">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-hemo-warning"></span> Inactive
-                                </span>
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-hemo-warning hospital-status">Inactive</span>
                             <?php endif; ?>
                             <p class="text-[10px] text-hemo-gray mt-1">Joined: <?php echo date('M Y', strtotime($h['created_at'])); ?></p>
                         </td>

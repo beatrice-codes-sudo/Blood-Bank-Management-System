@@ -118,13 +118,6 @@
             100% { background-position: 200% 0; }
         }
 
-        /* Pulse animation for notifications */
-        @keyframes pulse-dot {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        .pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
-
         /* Input focus state */
         input:focus, select:focus, textarea:focus {
             border-color: #C41E3A !important;

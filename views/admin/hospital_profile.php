@@ -36,9 +36,9 @@ $statusColors = ['Pending'=>'bg-amber-100 text-amber-700','Processing'=>'bg-blue
             <div class="flex flex-col sm:flex-row sm:items-center gap-2 mb-1">
                 <h1 class="font-display text-2xl font-bold text-hemo-navy"><?php echo $hName; ?></h1>
                 <?php if ($hospital['is_active']): ?>
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-hemo-success w-fit"><span class="w-1.5 h-1.5 rounded-full bg-hemo-success"></span> Active</span>
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-hemo-success w-fit">Active</span>
                 <?php else: ?>
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-hemo-warning w-fit"><span class="w-1.5 h-1.5 rounded-full bg-hemo-warning"></span> Inactive</span>
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-hemo-warning w-fit">Inactive</span>
                 <?php endif; ?>
             </div>
             <p class="text-xs font-mono text-hemo-info mb-4">Code: <?php echo sanitize($hospital['hospital_code']); ?> <?php if($hospital['license_number']): ?> &bull; License: <?php echo sanitize($hospital['license_number']); ?><?php endif; ?></p>
@@ -141,54 +141,6 @@ $statusColors = ['Pending'=>'bg-amber-100 text-amber-700','Processing'=>'bg-blue
     </div>
 </div>
 
-<!-- Appointments Table -->
-<!-- <div class="bg-white rounded-xl shadow-card overflow-hidden mb-8">
-    <div class="p-6 border-b border-hemo-border flex items-center gap-3">
-        <i class="fas fa-calendar-check text-hemo-info"></i> -->
-        <!-- <h3 class="text-lg font-semibold text-hemo-navy">Appointments</h3> -->
-        <!-- <span class="ml-auto text-xs text-hemo-gray"><?php echo count($appointments); ?> total</span>
-    </div>
-    <div class="overflow-x-auto">
-        <table class="w-full text-left border-collapse"> -->
-            <!-- <thead><tr class="bg-hemo-light-gray">
-                <th class="px-6 py-3 text-xs font-semibold text-hemo-gray uppercase">ID</th>
-                <th class="px-6 py-3 text-xs font-semibold text-hemo-gray uppercase">Donor</th>
-                <th class="px-6 py-3 text-xs font-semibold text-hemo-gray uppercase">Contact</th>
-                <th class="px-6 py-3 text-xs font-semibold text-hemo-gray uppercase">Date & Time</th>
-                <th class="px-6 py-3 text-xs font-semibold text-hemo-gray uppercase">Purpose</th>
-                <th class="px-6 py-3 text-xs font-semibold text-hemo-gray uppercase">Status</th>
-                <th class="px-6 py-3 text-xs font-semibold text-hemo-gray uppercase text-right">Actions</th>
-            </tr></thead> -->
-            <!-- <tbody class="divide-y divide-hemo-border">
-            <?php if(empty($appointments)): ?>
-                <tr><td colspan="7" class="px-6 py-12 text-center text-hemo-gray"><i class="fas fa-calendar-xmark text-3xl mb-2 block text-hemo-border"></i>No appointments found.</td></tr>
-            <?php else: foreach($appointments as $a):
-                $apptStatus = $a['status']??'Scheduled';
-                $apptColor = ['Scheduled'=>'bg-blue-100 text-blue-700','Completed'=>'bg-green-100 text-hemo-success','Cancelled'=>'bg-red-100 text-hemo-warning','No Show'=>'bg-gray-100 text-gray-600'][$apptStatus]??'bg-gray-100 text-gray-600';
-            ?>
-                <tr class="hover:bg-hemo-off-white transition-fast">
-                    <td class="px-6 py-4 text-sm font-mono text-hemo-info">A-<?php echo str_pad($a['appointment_id'],4,'0',STR_PAD_LEFT); ?></td>
-                    <td class="px-6 py-4">
-                        <p class="text-sm font-semibold text-hemo-navy"><?php echo sanitize($a['donor_first'].' '.$a['donor_last']); ?></p>
-                        <?php if($a['donor_blood_type']): ?><span class="text-[10px] font-bold text-hemo-red"><?php echo sanitize($a['donor_blood_type']); ?></span><?php endif; ?>
-                    </td>
-                    <td class="px-6 py-4">
-                        <p class="text-xs text-hemo-charcoal"><?php echo sanitize($a['donor_email']); ?></p>
-                        <p class="text-xs text-hemo-gray"><?php echo sanitize($a['donor_phone']??'N/A'); ?></p>
-                    </td>
-                    <td class="px-6 py-4 text-sm text-hemo-charcoal"><?php echo date('M d, Y',strtotime($a['appointment_date'])); ?> <span class="text-hemo-gray"><?php echo date('h:i A',strtotime($a['appointment_time'])); ?></span></td>
-                    <td class="px-6 py-4 text-sm text-hemo-charcoal"><?php echo sanitize($a['purpose']); ?></td>
-                    <td class="px-6 py-4"><span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold <?php echo $apptColor; ?>"><?php echo sanitize($apptStatus); ?></span></td>
-                    <td class="px-6 py-4 text-right">
-                        <button onclick="openDeleteApptModal(<?php echo $a['appointment_id']; ?>)" class="p-2 rounded-lg bg-hemo-light-gray text-hemo-charcoal hover:bg-red-50 hover:text-hemo-warning transition-fast" title="Delete"><i class="fas fa-trash text-sm"></i></button>
-                    </td>
-                </tr>
-            <?php endforeach; endif; ?>
-            </tbody>
-        </table>
-    </div>
-</div> -->
-
 <!-- View Request Modal -->
 <div id="viewRequestModal" class="fixed inset-0 bg-hemo-navy/50 backdrop-blur-sm z-[1001] hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
     <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col transform scale-95 transition-transform duration-300">
@@ -214,23 +166,6 @@ $statusColors = ['Pending'=>'bg-amber-100 text-amber-700','Processing'=>'bg-blue
                 <input type="hidden" name="request_id" id="del_req_id">
                 <input type="hidden" name="hospital_id" value="<?php echo $hId; ?>">
                 <button type="button" onclick="closeModal('deleteRequestModal')" class="flex-1 py-2.5 rounded-lg bg-hemo-light-gray text-hemo-charcoal font-semibold hover:bg-gray-200 transition-fast">Cancel</button>
-                <button type="submit" class="flex-1 py-2.5 rounded-lg bg-hemo-warning text-white font-semibold hover:bg-red-700 transition-fast">Delete</button>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Delete Appointment Modal -->
-<div id="deleteApptModal" class="fixed inset-0 bg-hemo-navy/50 backdrop-blur-sm z-[1001] hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm flex flex-col transform scale-95 transition-transform duration-300">
-        <div class="p-6 text-center">
-            <div class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4"><i class="fas fa-exclamation-triangle text-2xl text-hemo-warning"></i></div>
-            <h3 class="text-xl font-bold text-hemo-navy mb-2">Delete Appointment?</h3>
-            <p class="text-sm text-hemo-charcoal mb-6">This will permanently delete this appointment.</p>
-            <form action="<?php echo BASE_URL; ?>/index.php?page=admin_delete_appointment" method="POST" class="flex gap-3">
-                <input type="hidden" name="appointment_id" id="del_appt_id">
-                <input type="hidden" name="hospital_id" value="<?php echo $hId; ?>">
-                <button type="button" onclick="closeModal('deleteApptModal')" class="flex-1 py-2.5 rounded-lg bg-hemo-light-gray text-hemo-charcoal font-semibold hover:bg-gray-200 transition-fast">Cancel</button>
                 <button type="submit" class="flex-1 py-2.5 rounded-lg bg-hemo-warning text-white font-semibold hover:bg-red-700 transition-fast">Delete</button>
             </form>
         </div>
@@ -289,7 +224,6 @@ $statusColors = ['Pending'=>'bg-amber-100 text-amber-700','Processing'=>'bg-blue
 function openModal(id){const m=document.getElementById(id);m.classList.remove('hidden');void m.offsetWidth;m.classList.remove('opacity-0');m.querySelector('div').classList.remove('scale-95');}
 function closeModal(id){const m=document.getElementById(id);m.classList.add('opacity-0');m.querySelector('div').classList.add('scale-95');setTimeout(()=>m.classList.add('hidden'),300);}
 function openDeleteRequestModal(id){document.getElementById('del_req_id').value=id;openModal('deleteRequestModal');}
-function openDeleteApptModal(id){document.getElementById('del_appt_id').value=id;openModal('deleteApptModal');}
 
 function openVerifyPinModal(requestId, hospitalName) {
     document.getElementById('pin_request_id').value = requestId;
@@ -318,7 +252,7 @@ async function submitVerifyPin(e) {
         const data = await response.json();
 
         if (data.success) {
-            alert('✅ ' + data.message);
+            alert(data.message);
             window.location.reload();
         } else {
             errBox.textContent = data.message || 'Invalid PIN entered.';

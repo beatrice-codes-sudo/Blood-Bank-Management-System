@@ -232,13 +232,9 @@ ob_start();
                         <td class="px-6 py-4 text-sm text-hemo-gray"><?php echo date('M d, Y', strtotime($user['created_at'])); ?></td>
                         <td class="px-6 py-4">
                             <?php if ($user['is_active']): ?>
-                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-hemo-success">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-hemo-success"></span> Active
-                                </span>
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-hemo-success">Active</span>
                             <?php else: ?>
-                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-hemo-warning">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-hemo-warning"></span> Inactive
-                                </span>
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-hemo-warning">Inactive</span>
                             <?php endif; ?>
                         </td>
                     </tr>

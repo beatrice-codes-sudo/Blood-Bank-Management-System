@@ -277,7 +277,7 @@ function initiateSubscription(planKey, monthlyPrice, annualPrice) {
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    alert('🎉 Subscription activated successfully! Your hospital account is now active.');
+                    alert('Subscription activated successfully! Your hospital account is now active.');
                     window.location.reload();
                 } else {
                     alert('Verification error: ' + data.message);

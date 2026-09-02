@@ -33,17 +33,11 @@ require_once __DIR__ . '/layouts/header.php';
     <!-- Decorative elements -->
     <div class="absolute top-20 right-10 w-64 h-64 bg-white/5 rounded-full blur-3xl"></div>
     <div class="absolute bottom-10 left-10 w-96 h-96 bg-white/3 rounded-full blur-3xl"></div>
-    <div class="absolute top-1/2 right-1/4 w-4 h-4 bg-hemo-gold rounded-full pulse-dot"></div>
-    <div class="absolute top-1/3 left-1/3 w-3 h-3 bg-white/30 rounded-full pulse-dot" style="animation-delay: 1s"></div>
 
     <div class="max-w-7xl mx-auto px-6 py-20 w-full relative z-10">
         <div class="grid lg:grid-cols-2 gap-16 items-center">
             <!-- Left: Content -->
             <div class="text-white">
-                <!-- <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card text-sm font-medium mb-8">
-                    <span class="w-2 h-2 rounded-full bg-hemo-gold pulse-dot"></span>
-                    Saving Lives, One Drop at a Time
-                </div> -->
                 <h2 class="font-display text-5xl lg:text-6xl font-bold leading-tight mb-6">
                     Every Drop<br>
                     <span class="text-hemo-gold">Counts</span>
