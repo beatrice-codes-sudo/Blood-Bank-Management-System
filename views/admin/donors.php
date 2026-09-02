@@ -20,8 +20,8 @@ ob_start();
 </div>
 
 <!-- Stats Grid -->
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-    <!-- Total Donors -->
+<!-- <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    
     <div class="stat-card bg-white rounded-xl shadow-card p-5 border-l-4 border-hemo-red transition-default cursor-default">
         <div class="flex items-center justify-between mb-4">
             <div class="w-12 h-12 rounded-xl bg-hemo-light-red flex items-center justify-center">
@@ -32,7 +32,7 @@ ob_start();
         <p class="text-sm text-hemo-gray mt-1">Total Donors</p>
     </div>
 
-    <!-- Active Donors -->
+    
     <div class="stat-card bg-white rounded-xl shadow-card p-5 border-l-4 border-hemo-success transition-default cursor-default">
         <div class="flex items-center justify-between mb-4">
             <div class="w-12 h-12 rounded-xl bg-green-50 flex items-center justify-center">
@@ -43,7 +43,6 @@ ob_start();
         <p class="text-sm text-hemo-gray mt-1">Active Accounts</p>
     </div>
 
-    <!-- Eligible Donors -->
     <div class="stat-card bg-white rounded-xl shadow-card p-5 border-l-4 border-blue-500 transition-default cursor-default">
         <div class="flex items-center justify-between mb-4">
             <div class="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center">
@@ -54,7 +53,6 @@ ob_start();
         <p class="text-sm text-hemo-gray mt-1">Eligible to Donate</p>
     </div>
 
-    <!-- Have Donated -->
     <div class="stat-card bg-white rounded-xl shadow-card p-5 border-l-4 border-hemo-gold transition-default cursor-default">
         <div class="flex items-center justify-between mb-4">
             <div class="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center">
@@ -64,7 +62,7 @@ ob_start();
         <p class="text-3xl font-bold text-hemo-navy"><?php echo number_format($stats['have_donated'] ?? 0); ?></p>
         <p class="text-sm text-hemo-gray mt-1">Have Donated</p>
     </div>
-</div>
+</div> -->
 
 <!-- Filters & Table -->
 <div class="bg-white rounded-xl shadow-card overflow-hidden">
