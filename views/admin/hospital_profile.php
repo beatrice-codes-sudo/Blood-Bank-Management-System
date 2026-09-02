@@ -1,5 +1,8 @@
 <?php
 $pageTitle = 'Hospital Profile';
+$hospital = $hospital ?? [];
+$requests = $requests ?? [];
+$appointments = $appointments ?? [];
 $hName = sanitize($hospital['hospital_name']);
 $manageName = sanitize($hospital['first_name'].' '.$hospital['last_name']);
 $managerEmail = sanitize($hospital['manager_email']);

@@ -3,6 +3,7 @@
  * Admin Dashboard
  */
 $pageTitle = 'Admin Dashboard';
+$data = $data ?? [];
 
 // Start output buffering for content injection
 ob_start();

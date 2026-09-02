@@ -3,6 +3,7 @@
  * Admin: Donors Management View
  */
 $pageTitle = 'Manage Donors';
+$bloodTypes = $bloodTypes ??BLOOD_TYPES;
 
 ob_start();
 ?>

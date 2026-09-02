@@ -3,7 +3,11 @@
  * Admin: Requests Management View
  */
 $pageTitle = 'Manage Blood Requests';
-
+$page = $page ?? 1;
+$limit = $limit ?? 10;
+$requests = $requests ?? [];
+$totalPages = $totalPages ?? 1;
+$totalRequests = $totalRequests ?? 0;
 ob_start();
 ?>
 

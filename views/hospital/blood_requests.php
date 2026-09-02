@@ -3,6 +3,7 @@
  * Hospital Manager: Blood Requests Management View
  */
 $pageTitle = 'Blood Requests';
+$bloodTypes = $bloodTypes ?? BLOOD_TYPES;
 
 ob_start();
 ?>
