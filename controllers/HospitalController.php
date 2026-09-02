@@ -271,4 +271,77 @@ class HospitalController {
             redirect('hospital_dashboard', 'Error updating profile: ' . $e->getMessage(), 'error');
         }
     }
+
+    // ================================================================
+    // SaaS Subscriptions & Paystack
+    // ================================================================
+
+    /**
+     * Show subscription plans view
+     */
+    public function subscription() {
+        requireRole(ROLE_HOSPITAL);
+        $hospital = $this->getMyHospital();
+        $plans = defined('PLANS') ? PLANS : [];
+        $paymentModel = new Payment();
+        $payments = $hospital ? $paymentModel->getPaymentsByHospital($hospital['hospital_id']) : [];
+        $pageTitle = 'SaaS Subscription Plans';
+        require_once __DIR__ . '/../views/hospital/subscription.php';
+    }
+
+    /**
+     * Verify Paystack subscription transaction callback (AJAX)
+     */
+    public function verifySubscription() {
+        requireRole(ROLE_HOSPITAL);
+        header('Content-Type: application/json');
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['success' => false, 'message' => 'Invalid request method']);
+            exit;
+        }
+
+        $reference = trim($_POST['reference'] ?? '');
+        $planName  = trim($_POST['plan_name'] ?? 'Professional');
+        $interval  = trim($_POST['interval'] ?? 'Monthly');
+
+        if (empty($reference)) {
+            echo json_encode(['success' => false, 'message' => 'Missing transaction reference']);
+            exit;
+        }
+
+        $hospital = $this->getMyHospital();
+        if (!$hospital) {
+            echo json_encode(['success' => false, 'message' => 'Hospital profile not found']);
+            exit;
+        }
+
+        $paymentModel = new Payment();
+        $result = $paymentModel->verifyPaystackReference($reference);
+
+        if ($result && isset($result['status']) && $result['status'] === true && isset($result['data']) && $result['data']['status'] === 'success') {
+            $amountPaid = $result['data']['amount'] / 100;
+            $channel    = $result['data']['channel'] ?? 'card';
+
+            $activated = $paymentModel->activateHospitalSubscription(
+                $hospital['hospital_id'],
+                $reference,
+                $planName,
+                $interval,
+                $amountPaid,
+                $channel,
+                $result['data']
+            );
+
+            if ($activated) {
+                echo json_encode(['success' => true, 'message' => 'Subscription activated successfully!']);
+                exit;
+            }
+        }
+
+        $errorMsg = $result['message'] ?? 'Subscription verification failed. Please contact support.';
+        echo json_encode(['success' => false, 'message' => $errorMsg]);
+        exit;
+    }
 }
+

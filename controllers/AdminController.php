@@ -302,6 +302,66 @@ class AdminController {
     }
 
     /**
+     * Mark request as Ready for Pickup and generate 6-digit Digital Release PIN (Admin)
+     */
+    public function markReadyForPickup() {
+        requireRole(ROLE_ADMIN);
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirect('admin_hospitals');
+        }
+
+        $requestId  = (int)($_POST['request_id'] ?? 0);
+        $hospitalId = (int)($_POST['hospital_id'] ?? 0);
+
+        if (!$requestId || !$hospitalId) {
+            redirect('admin_hospitals', 'Invalid request parameters', 'error');
+        }
+
+        try {
+            // Generate secure 6-digit numeric PIN
+            $releasePin = sprintf('%06d', mt_rand(100000, 999999));
+            $this->hospitalModel->markReadyForPickup($requestId, $releasePin);
+
+            redirect('admin_hospital_profile&hospital_id=' . $hospitalId, 'Request marked Ready for Pickup. Release PIN: ' . $releasePin, 'success');
+        } catch (Exception $e) {
+            redirect('admin_hospital_profile&hospital_id=' . $hospitalId, 'Error updating pickup status: ' . $e->getMessage(), 'error');
+        }
+    }
+
+    /**
+     * Verify Release PIN at counter during runner handover (Admin AJAX / POST)
+     */
+    public function verifyReleasePin() {
+        requireRole(ROLE_ADMIN);
+        header('Content-Type: application/json');
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['success' => false, 'message' => 'Invalid request method']);
+            exit;
+        }
+
+        $requestId    = (int)($_POST['request_id'] ?? 0);
+        $enteredPin   = trim($_POST['release_pin'] ?? '');
+        $runnerName   = trim($_POST['collected_by_name'] ?? '');
+        $runnerPhone  = trim($_POST['collected_by_phone'] ?? '');
+
+        if (!$requestId || empty($enteredPin) || empty($runnerName)) {
+            echo json_encode(['success' => false, 'message' => 'Missing required fields (PIN, Runner Name)']);
+            exit;
+        }
+
+        try {
+            $result = $this->hospitalModel->verifyReleasePin($requestId, $enteredPin, $runnerName, $runnerPhone);
+            echo json_encode($result);
+            exit;
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => 'Error verifying PIN: ' . $e->getMessage()]);
+            exit;
+        }
+    }
+
+    /**
      * Delete an appointment (admin action)
      */
     public function deleteAppointment() {

@@ -135,6 +135,16 @@ switch ($page) {
         $admin->dispatchUnits();
         break;
 
+    case 'admin_mark_ready_pickup':
+        $admin = new AdminController();
+        $admin->markReadyForPickup();
+        break;
+
+    case 'admin_verify_release_pin':
+        $admin = new AdminController();
+        $admin->verifyReleasePin();
+        break;
+
     // === Admin Requests Management ===
     case 'admin_requests_donor':
         $admin = new AdminController();
@@ -212,6 +222,16 @@ switch ($page) {
     case 'hospital_profile_update':
         $hospital = new HospitalController();
         $hospital->updateProfile();
+        break;
+
+    case 'hospital_subscription':
+        $hospital = new HospitalController();
+        $hospital->subscription();
+        break;
+
+    case 'hospital_verify_subscription':
+        $hospital = new HospitalController();
+        $hospital->verifySubscription();
         break;
 
     // Placeholder pages for hospital (remaining)

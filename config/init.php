@@ -19,6 +19,7 @@ require_once __DIR__ . '/../models/Donor.php';
 require_once __DIR__ . '/../models/Hospital.php';
 require_once __DIR__ . '/../models/BloodInventory.php';
 require_once __DIR__ . '/../models/Requests.php';
+require_once __DIR__ . '/../models/Payment.php';
 
 // Load controllers
 require_once __DIR__ . '/../controllers/AuthController.php';

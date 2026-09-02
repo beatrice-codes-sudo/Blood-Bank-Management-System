@@ -81,8 +81,8 @@ USE `bms_db`;
 
 -- 1. Create payments / subscription transactions ledger
 CREATE TABLE IF NOT EXISTS `payments` (
-    `payment_id` INT AUTO_INCREMENT PRIMARY KEY,
-    `hospital_id` INT NOT NULL,
+    `payment_id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `hospital_id` INT UNSIGNED NOT NULL,
     `reference` VARCHAR(100) NOT NULL UNIQUE,
     `amount` DECIMAL(10, 2) NOT NULL,
     `currency` VARCHAR(10) NOT NULL DEFAULT 'KES',
@@ -98,7 +98,7 @@ CREATE TABLE IF NOT EXISTS `payments` (
 
 -- 2. Add SaaS Subscription fields to hospitals table
 ALTER TABLE `hospitals` 
-ADD COLUMN IF NOT EXISTS `subscription_status` ENUM('Trial', 'Active', 'Expired', 'Cancelled') DEFAULT 'Trial' AFTER `is_verified`,
+ADD COLUMN IF NOT EXISTS `subscription_status` ENUM('Trial', 'Active', 'Expired', 'Cancelled') DEFAULT 'Trial' AFTER `is_active`,
 ADD COLUMN IF NOT EXISTS `subscription_plan` ENUM('Starter', 'Professional', 'Enterprise') DEFAULT 'Starter' AFTER `subscription_status`,
 ADD COLUMN IF NOT EXISTS `billing_interval` ENUM('Monthly', 'Annual') DEFAULT 'Monthly' AFTER `subscription_plan`,
 ADD COLUMN IF NOT EXISTS `subscription_expires_at` DATETIME NULL AFTER `billing_interval`,

@@ -109,9 +109,28 @@ $statusColors = ['Pending'=>'bg-amber-100 text-amber-700','Processing'=>'bg-blue
                     <td class="px-6 py-4 text-xs text-hemo-charcoal"><?php echo sanitize(($r['requester_first']??'').' '.($r['requester_last']??'')); ?></td>
                     <td class="px-6 py-4 text-right whitespace-nowrap space-x-1">
                         <button onclick="viewRequest(<?php echo $r['request_id']; ?>)" class="p-2 rounded-lg bg-hemo-light-gray text-hemo-charcoal hover:bg-blue-50 hover:text-blue-600 transition-fast" title="View"><i class="fas fa-eye text-sm"></i></button>
-                        <?php if($r['status']!=='Fulfilled' && $r['status']!=='Cancelled' && $r['status']!=='Rejected'): ?>
-                        <form method="POST" action="<?php echo BASE_URL; ?>/index.php?page=admin_fulfill_request" class="inline"><input type="hidden" name="request_id" value="<?php echo $r['request_id']; ?>"><input type="hidden" name="hospital_id" value="<?php echo $hId; ?>"><button type="submit" class="p-2 rounded-lg bg-hemo-light-gray text-hemo-charcoal hover:bg-green-50 hover:text-hemo-success transition-fast" title="Fulfill"><i class="fas fa-check text-sm"></i></button></form>
+                        
+                        <?php if(($r['collection_status'] ?? '') === 'Ready for Pickup'): ?>
+                            <button onclick="openVerifyPinModal(<?php echo $r['request_id']; ?>, '<?php echo sanitize($r['hospital_name'] ?? $hName); ?>')" class="p-2 rounded-lg bg-amber-100 text-amber-800 hover:bg-amber-200 transition-fast font-bold text-xs" title="Verify Runner Release PIN">
+                                <i class="fas fa-key text-sm mr-1"></i> Verify PIN
+                            </button>
+                        <?php elseif($r['status']!=='Fulfilled' && $r['status']!=='Cancelled' && $r['status']!=='Rejected'): ?>
+                            <form method="POST" action="<?php echo BASE_URL; ?>/index.php?page=admin_mark_ready_pickup" class="inline" title="Mark Ready for Pickup (Generates 6-Digit PIN)">
+                                <input type="hidden" name="request_id" value="<?php echo $r['request_id']; ?>">
+                                <input type="hidden" name="hospital_id" value="<?php echo $hId; ?>">
+                                <button type="submit" class="p-2 rounded-lg bg-hemo-light-gray text-hemo-charcoal hover:bg-amber-50 hover:text-amber-700 transition-fast" title="Mark Ready for Collection">
+                                    <i class="fas fa-box-archive text-sm"></i>
+                                </button>
+                            </form>
+                            <form method="POST" action="<?php echo BASE_URL; ?>/index.php?page=admin_fulfill_request" class="inline">
+                                <input type="hidden" name="request_id" value="<?php echo $r['request_id']; ?>">
+                                <input type="hidden" name="hospital_id" value="<?php echo $hId; ?>">
+                                <button type="submit" class="p-2 rounded-lg bg-hemo-light-gray text-hemo-charcoal hover:bg-green-50 hover:text-hemo-success transition-fast" title="Quick Direct Fulfill">
+                                    <i class="fas fa-check text-sm"></i>
+                                </button>
+                            </form>
                         <?php endif; ?>
+
                         <button onclick="openDeleteRequestModal(<?php echo $r['request_id']; ?>)" class="p-2 rounded-lg bg-hemo-light-gray text-hemo-charcoal hover:bg-red-50 hover:text-hemo-warning transition-fast" title="Delete"><i class="fas fa-trash text-sm"></i></button>
                     </td>
                 </tr>
@@ -217,11 +236,102 @@ $statusColors = ['Pending'=>'bg-amber-100 text-amber-700','Processing'=>'bg-blue
     </div>
 </div>
 
+<!-- Verify Release PIN Modal -->
+<div id="verifyPinModal" class="fixed inset-0 bg-hemo-navy/50 backdrop-blur-sm z-[1001] hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col transform scale-95 transition-transform duration-300 overflow-hidden">
+        <div class="px-6 py-4 border-b border-hemo-border bg-amber-50 flex items-center justify-between">
+            <h3 class="text-base font-bold text-amber-900 flex items-center gap-2">
+                <i class="fas fa-key text-amber-600"></i> Verify Click & Collect Handover
+            </h3>
+            <button type="button" onclick="closeModal('verifyPinModal')" class="text-amber-800 hover:text-hemo-red"><i class="fas fa-times"></i></button>
+        </div>
+        <form id="verifyPinForm" onsubmit="submitVerifyPin(event)" class="p-6">
+            <input type="hidden" name="request_id" id="pin_request_id">
+            
+            <p class="text-xs text-hemo-charcoal mb-4">
+                Ask the hospital ambulance driver or lab runner for the <strong>6-digit Release PIN</strong> generated on their portal.
+            </p>
+
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label class="block text-xs font-bold text-hemo-charcoal mb-1 uppercase tracking-wider">6-Digit Release PIN *</label>
+                    <input type="text" name="release_pin" id="pin_input" required maxlength="10" placeholder="e.g. 748291" 
+                           class="w-full px-4 py-3 rounded-lg border-2 border-amber-300 text-center font-mono font-bold text-2xl tracking-widest text-hemo-navy focus:border-amber-500 focus:ring-0 outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-hemo-charcoal mb-1">Runner / Driver Full Name *</label>
+                    <input type="text" name="collected_by_name" id="runner_name_input" required placeholder="e.g. John Mwangi (Driver)" 
+                           class="w-full px-3 py-2 rounded-lg border border-hemo-border text-sm focus:border-hemo-red outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-hemo-charcoal mb-1">Runner Phone / Ambulance Reg</label>
+                    <input type="text" name="collected_by_phone" id="runner_phone_input" placeholder="e.g. +254711... or KCD 123A" 
+                           class="w-full px-3 py-2 rounded-lg border border-hemo-border text-sm focus:border-hemo-red outline-none">
+                </div>
+            </div>
+
+            <div id="pinErrorMessage" class="hidden mb-4 p-3 rounded-lg bg-red-100 text-hemo-warning text-xs font-semibold"></div>
+
+            <div class="flex gap-3">
+                <button type="button" onclick="closeModal('verifyPinModal')" class="flex-1 py-2.5 rounded-lg bg-hemo-light-gray text-hemo-charcoal font-semibold text-sm hover:bg-gray-200 transition-fast">Cancel</button>
+                <button type="submit" id="btnSubmitPin" class="flex-1 py-2.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm shadow-md transition-fast">
+                    Verify & Release Units
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
 function openModal(id){const m=document.getElementById(id);m.classList.remove('hidden');void m.offsetWidth;m.classList.remove('opacity-0');m.querySelector('div').classList.remove('scale-95');}
 function closeModal(id){const m=document.getElementById(id);m.classList.add('opacity-0');m.querySelector('div').classList.add('scale-95');setTimeout(()=>m.classList.add('hidden'),300);}
 function openDeleteRequestModal(id){document.getElementById('del_req_id').value=id;openModal('deleteRequestModal');}
 function openDeleteApptModal(id){document.getElementById('del_appt_id').value=id;openModal('deleteApptModal');}
+
+function openVerifyPinModal(requestId, hospitalName) {
+    document.getElementById('pin_request_id').value = requestId;
+    document.getElementById('pin_input').value = '';
+    document.getElementById('runner_name_input').value = '';
+    document.getElementById('runner_phone_input').value = '';
+    document.getElementById('pinErrorMessage').classList.add('hidden');
+    openModal('verifyPinModal');
+}
+
+async function submitVerifyPin(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btnSubmitPin');
+    const errBox = document.getElementById('pinErrorMessage');
+    errBox.classList.add('hidden');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+
+    const formData = new FormData(document.getElementById('verifyPinForm'));
+
+    try {
+        const response = await fetch('<?php echo BASE_URL; ?>/index.php?page=admin_verify_release_pin', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            alert('✅ ' + data.message);
+            window.location.reload();
+        } else {
+            errBox.textContent = data.message || 'Invalid PIN entered.';
+            errBox.classList.remove('hidden');
+            btn.disabled = false;
+            btn.innerHTML = 'Verify & Release Units';
+        }
+    } catch (err) {
+        errBox.textContent = 'Server connection error. Please try again.';
+        errBox.classList.remove('hidden');
+        btn.disabled = false;
+        btn.innerHTML = 'Verify & Release Units';
+    }
+}
 
 const urgencyLabels={'Normal':['Low','text-blue-700'],'Urgent':['High','text-amber-700'],'Emergency':['Critical','text-hemo-warning']};
 const statusLabels={'Pending':'bg-amber-100 text-amber-700','Processing':'bg-blue-100 text-blue-700','Fulfilled':'bg-green-100 text-hemo-success','Partially Fulfilled':'bg-indigo-100 text-indigo-700','Rejected':'bg-red-100 text-hemo-warning','Cancelled':'bg-gray-100 text-gray-600'};

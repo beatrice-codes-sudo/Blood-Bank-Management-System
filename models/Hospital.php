@@ -399,4 +399,57 @@ class HospitalModel {
         $stmt->execute(['id' => $requestId]);
         return $stmt->rowCount() > 0;
     }
+
+    /**
+     * Mark a request as Ready for Pickup and assign 6-digit release PIN (Admin)
+     */
+    public function markReadyForPickup($requestId, $releasePin) {
+        $sql = "UPDATE requests SET 
+                status = 'Processing',
+                collection_status = 'Ready for Pickup',
+                release_pin = :pin,
+                pin_generated_at = NOW(),
+                updated_at = NOW()
+                WHERE request_id = :rid";
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute([
+            'pin' => $releasePin,
+            'rid' => $requestId
+        ]);
+    }
+
+    /**
+     * Verify Release PIN and release units to hospital runner (Admin)
+     */
+    public function verifyReleasePin($requestId, $enteredPin, $runnerName, $runnerPhone) {
+        $stmt = $this->db->prepare("SELECT * FROM requests WHERE request_id = :rid");
+        $stmt->execute(['rid' => $requestId]);
+        $req = $stmt->fetch();
+
+        if (!$req || trim($req['release_pin']) !== trim($enteredPin)) {
+            return ['success' => false, 'message' => 'Invalid or incorrect 6-digit Release PIN!'];
+        }
+
+        $sql = "UPDATE requests SET 
+                status = 'Fulfilled',
+                collection_status = 'Collected',
+                collected_at = NOW(),
+                collected_by_name = :runner_name,
+                collected_by_phone = :runner_phone,
+                units_fulfilled = units_requested,
+                updated_at = NOW()
+                WHERE request_id = :rid";
+        $stmtUpdate = $this->db->prepare($sql);
+        $success = $stmtUpdate->execute([
+            'runner_name'  => $runnerName,
+            'runner_phone' => $runnerPhone,
+            'rid'          => $requestId
+        ]);
+
+        return [
+            'success' => $success,
+            'message' => $success ? 'PIN Verified! Units released to ' . $runnerName : 'Database update failed.'
+        ];
+    }
 }
+

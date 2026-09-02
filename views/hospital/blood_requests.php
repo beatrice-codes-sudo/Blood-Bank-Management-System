@@ -90,6 +90,16 @@ ob_start();
                             <div class="flex items-center gap-3">
                                 <div>
                                     <p class="text-sm font-bold text-hemo-navy leading-none request-id">REQ-<?php echo str_pad($req['request_id'], 4, '0', STR_PAD_LEFT); ?></p>
+                                    <?php if (($req['collection_status'] ?? '') === 'Ready for Pickup' && !empty($req['release_pin'])): ?>
+                                        <div class="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-50 border border-amber-300 text-amber-900 text-xs font-mono font-bold shadow-sm" title="Show this PIN to Central Blood Bank staff upon collection">
+                                            <i class="fas fa-key text-[10px] text-amber-600"></i>
+                                            <span>PIN: <?php echo sanitize($req['release_pin']); ?></span>
+                                        </div>
+                                    <?php elseif (($req['collection_status'] ?? '') === 'Collected'): ?>
+                                        <div class="mt-1.5 inline-flex items-center gap-1 text-[11px] text-hemo-success font-semibold">
+                                            <i class="fas fa-check-double text-[10px]"></i> Collected
+                                        </div>
+                                    <?php endif; ?>
                                     <div class="flex items-center gap-2 mt-1 hidden request-notes">
                                         <?php echo sanitize($req['notes'] ?? ''); ?>
                                     </div>
@@ -132,7 +142,13 @@ ob_start();
                             <?php 
                             $statusClass = 'bg-gray-100 text-gray-700';
                             $statusDot = 'bg-gray-500';
-                            if ($req['status'] === 'Pending' || $req['status'] === 'Processing') {
+                            $displayStatus = $req['status'];
+
+                            if (($req['collection_status'] ?? '') === 'Ready for Pickup') {
+                                $statusClass = 'bg-amber-100 text-amber-800 border border-amber-300';
+                                $statusDot = 'bg-amber-600 animate-pulse';
+                                $displayStatus = 'Ready for Pickup';
+                            } elseif ($req['status'] === 'Pending' || $req['status'] === 'Processing') {
                                 $statusClass = 'bg-amber-100 text-hemo-amber';
                                 $statusDot = 'bg-hemo-amber';
                             } elseif ($req['status'] === 'Fulfilled') {
@@ -148,7 +164,7 @@ ob_start();
                             ?>
                             <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold <?php echo $statusClass; ?> request-status">
                                 <span class="w-1.5 h-1.5 rounded-full <?php echo $statusDot; ?>"></span> 
-                                <?php echo sanitize($req['status']); ?>
+                                <?php echo sanitize($displayStatus); ?>
                             </span>
                         </td>
                         <td class="px-6 py-4">

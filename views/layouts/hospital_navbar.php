@@ -34,15 +34,10 @@ $userInitials = strtoupper(substr($_SESSION['first_name'] ?? 'H', 0, 1) . substr
             <i class="fas fa-clipboard-list mr-2"></i> Blood Requests
         </a>
         
-        <!-- <a href="<?php echo BASE_URL; ?>/index.php?page=hospital_inventory" 
-           class="h-full flex items-center px-4 text-sm font-semibold transition-fast border-b-2 <?php echo $currentPage === 'hospital_inventory' ? 'border-hemo-red text-hemo-red' : 'border-transparent text-hemo-charcoal hover:text-hemo-red hover:border-hemo-light-red'; ?>">
-            <i class="fas fa-droplet mr-2"></i> Blood Availability
+        <a href="<?php echo BASE_URL; ?>/index.php?page=hospital_subscription" 
+           class="h-full flex items-center px-4 text-sm font-semibold transition-fast border-b-2 <?php echo $currentPage === 'hospital_subscription' ? 'border-hemo-red text-hemo-red' : 'border-transparent text-hemo-charcoal hover:text-hemo-red hover:border-hemo-light-red'; ?>">
+            <i class="fas fa-crown mr-2 text-hemo-gold"></i> Subscription Plans
         </a>
-
-        <a href="<?php echo BASE_URL; ?>/index.php?page=hospital_profile" 
-           class="h-full flex items-center px-4 text-sm font-semibold transition-fast border-b-2 <?php echo $currentPage === 'hospital_profile' ? 'border-hemo-red text-hemo-red' : 'border-transparent text-hemo-charcoal hover:text-hemo-red hover:border-hemo-light-red'; ?>">
-            <i class="fas fa-hospital mr-2"></i> Hospital Profile
-        </a> -->
     </div>
 
     <!-- Right: User Profile & Mobile Toggle -->
@@ -84,17 +79,11 @@ $userInitials = strtoupper(substr($_SESSION['first_name'] ?? 'H', 0, 1) . substr
             <span>Blood Requests</span>
         </a>
         
-        <!-- <a href="<?php echo BASE_URL; ?>/index.php?page=hospital_inventory" 
-           class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-fast <?php echo $currentPage === 'hospital_inventory' ? 'bg-hemo-light-red text-hemo-red' : 'text-hemo-charcoal hover:bg-gray-50'; ?>">
-            <i class="fas fa-droplet w-5 text-center"></i>
-            <span>Blood Availability</span>
+        <a href="<?php echo BASE_URL; ?>/index.php?page=hospital_subscription" 
+           class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-fast <?php echo $currentPage === 'hospital_subscription' ? 'bg-hemo-light-red text-hemo-red' : 'text-hemo-charcoal hover:bg-gray-50'; ?>">
+            <i class="fas fa-crown w-5 text-center text-hemo-gold"></i>
+            <span>Subscription Plans</span>
         </a>
-
-        <a href="<?php echo BASE_URL; ?>/index.php?page=hospital_profile" 
-           class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-fast <?php echo $currentPage === 'hospital_profile' ? 'bg-hemo-light-red text-hemo-red' : 'text-hemo-charcoal hover:bg-gray-50'; ?>">
-            <i class="fas fa-hospital w-5 text-center"></i>
-            <span>Hospital Profile</span>
-        </a> -->
 
         <div class="h-px bg-hemo-border my-2"></div>
         

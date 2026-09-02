@@ -14,7 +14,7 @@ class Database {
         if (!file_exists($envPath)) {
             die("Error: .env file not found at " . realpath(__DIR__ . '/..'));
         }
-        $env = parse_ini_file($envPath);
+        $env = function_exists('loadEnvFile') ? loadEnvFile($envPath) : (parse_ini_file($envPath) ?: []);
 
         $host    = $env['DB_HOST'] ?? 'localhost';
         $dbname  = $env['DB_NAME'] ?? 'bms_db';
