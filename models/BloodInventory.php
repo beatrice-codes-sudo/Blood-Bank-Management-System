@@ -5,7 +5,8 @@
  * Post-consolidation: blood_type is an inline ENUM, no blood_types table
  */
 class BloodInventory {
-    private $db;
+    /** @var PDO */
+    private PDO $db;
 
     public function __construct() {
         $this->db = Database::getInstance()->getConnection();
@@ -52,18 +53,262 @@ class BloodInventory {
     }
 
     /**
-     * Get critical stock (types with less than threshold)
+     * Get minimum threshold settings per blood type
+     *
+     * @return array Associative array ['A+' => 5, 'O-' => 8, ...]
      */
-    public function getCriticalStock($threshold = 5) {
-        // Get counts for all types, then filter in PHP to catch zero-stock types
+    public function getThresholds(): array {
+        $defaults = [
+            'O-' => 8,
+            'O+' => 8,
+            'A+' => 5,
+            'B+' => 5,
+            'A-' => 4,
+            'B-' => 4,
+            'AB+' => 3,
+            'AB-' => 3,
+        ];
+
+        try {
+            $stmt = $this->db->query("SELECT blood_type, min_threshold FROM stock_thresholds");
+            $rows = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+            if (!empty($rows)) {
+                return array_merge($defaults, $rows);
+            }
+        } catch (Exception $e) {
+            // Table might not exist yet; return defaults
+        }
+
+        return $defaults;
+    }
+
+    /**
+     * Update stock threshold settings for all blood types
+     *
+     * @param array $thresholds
+     * @return bool
+     */
+    public function updateThresholds(array $thresholds): bool {
+        try {
+            $sql = "INSERT INTO stock_thresholds (blood_type, min_threshold) 
+                    VALUES (:blood_type, :min_threshold)
+                    ON DUPLICATE KEY UPDATE min_threshold = VALUES(min_threshold), updated_at = NOW()";
+            $stmt = $this->db->prepare($sql);
+            foreach ($thresholds as $bType => $val) {
+                if (in_array($bType, BLOOD_TYPES)) {
+                    $stmt->execute([
+                        'blood_type'    => $bType,
+                        'min_threshold' => max(1, (int)$val)
+                    ]);
+                }
+            }
+            return true;
+        } catch (Exception $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Get comprehensive inventory summary with thresholds and deficit stats
+     */
+    public function getInventorySummaryWithThresholds(): array {
+        $thresholds = $this->getThresholds();
         $summary = $this->getInventorySummary();
+
+        foreach ($summary as &$item) {
+            $type = $item['blood_type'];
+            $count = (int)$item['unit_count'];
+            $threshold = (int)($thresholds[$type] ?? 5);
+
+            $item['min_threshold'] = $threshold;
+            $item['deficit'] = max(0, $threshold - $count);
+            $item['fill_percent'] = $threshold > 0 ? min(100, round(($count / $threshold) * 100)) : 100;
+            
+            if ($count === 0) {
+                $item['stock_status'] = 'Empty';
+                $item['status_badge'] = 'bg-red-100 text-red-700 border-red-300';
+            } elseif ($count < $threshold) {
+                $item['stock_status'] = 'Critical';
+                $item['status_badge'] = 'bg-amber-100 text-amber-800 border-amber-300';
+            } else {
+                $item['stock_status'] = 'Adequate';
+                $item['status_badge'] = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+            }
+        }
+
+        return $summary;
+    }
+
+    /**
+     * Get critical stock (types with less than their specific minimum threshold)
+     *
+     * @param int|null $fallbackThreshold
+     * @return array
+     */
+    public function getCriticalStock($fallbackThreshold = null) {
+        $summary = $this->getInventorySummaryWithThresholds();
         $critical = [];
+
         foreach ($summary as $row) {
+            $threshold = $fallbackThreshold !== null ? (int)$fallbackThreshold : (int)$row['min_threshold'];
             if ($row['unit_count'] < $threshold) {
                 $critical[] = $row;
             }
         }
         return $critical;
+    }
+
+    /**
+     * Add batch of blood units into inventory (Intake)
+     *
+     * @param string $bloodType
+     * @param int $unitsCount
+     * @param int $volumeMl
+     * @param string $collectionDate
+     * @param string|null $expiryDate
+     * @return int Number of units added
+     */
+    public function addBloodUnitsBatch(string $bloodType, int $unitsCount, int $volumeMl = 450, string $collectionDate = '', ?string $expiryDate = null): int {
+        if (!in_array($bloodType, BLOOD_TYPES) || $unitsCount <= 0) {
+            return 0;
+        }
+
+        if (empty($collectionDate)) {
+            $collectionDate = date('Y-m-d');
+        }
+
+        if (empty($expiryDate)) {
+            // Whole blood standard shelf life in CPDA-1 anticoagulant: 42 days
+            $expiryDate = date('Y-m-d', strtotime($collectionDate . ' + 42 days'));
+        }
+
+        $sql = "INSERT INTO blood_units (blood_type, status, collection_date, expiry_date, volume_ml, created_at)
+                VALUES (:blood_type, 'Available', :collection_date, :expiry_date, :volume_ml, NOW())";
+        $stmt = $this->db->prepare($sql);
+
+        $inserted = 0;
+        for ($i = 0; $i < $unitsCount; $i++) {
+            $stmt->execute([
+                'blood_type'      => $bloodType,
+                'collection_date' => $collectionDate,
+                'expiry_date'     => $expiryDate,
+                'volume_ml'       => $volumeMl
+            ]);
+            $inserted++;
+        }
+
+        return $inserted;
+    }
+
+    /**
+     * Publish or update an active in-app emergency appeal for a blood group
+     *
+     * @param string $bloodType
+     * @param string $urgency
+     * @param string $message
+     * @param int $adminId
+     * @return int New Appeal ID
+     */
+    public function publishEmergencyAppeal(string $bloodType, string $urgency, string $message, int $adminId): int {
+        // Deactivate previous active appeals for this blood type
+        $deactSql = "UPDATE emergency_appeals SET is_active = 0, resolved_at = NOW() 
+                     WHERE blood_type = :blood_type AND is_active = 1";
+        $deactStmt = $this->db->prepare($deactSql);
+        $deactStmt->execute(['blood_type' => $bloodType]);
+
+        // Insert new active appeal
+        $sql = "INSERT INTO emergency_appeals (blood_type, urgency, message, is_active, created_by, created_at)
+                VALUES (:blood_type, :urgency, :message, 1, :created_by, NOW())";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([
+            'blood_type' => $bloodType,
+            'urgency'    => $urgency,
+            'message'    => $message,
+            'created_by' => $adminId,
+        ]);
+
+        return (int)$this->db->lastInsertId();
+    }
+
+    /**
+     * Get all currently active emergency appeals
+     *
+     * @return array
+     */
+    public function getActiveAppeals(): array {
+        try {
+            $stmt = $this->db->query("SELECT * FROM emergency_appeals WHERE is_active = 1 ORDER BY created_at DESC");
+            return $stmt->fetchAll();
+        } catch (Exception $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Get active emergency appeal relevant for a specific donor
+     * (matching their blood group or compatible)
+     *
+     * @param string|null $donorBloodType
+     * @return array|null
+     */
+    public function getActiveAppealForDonor(?string $donorBloodType): ?array {
+        if (!$donorBloodType) {
+            return null;
+        }
+
+        try {
+            $sql = "SELECT * FROM emergency_appeals 
+                    WHERE is_active = 1 
+                    AND blood_type = :blood_type 
+                    ORDER BY created_at DESC 
+                    LIMIT 1";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute(['blood_type' => $donorBloodType]);
+            $appeal = $stmt->fetch();
+            return $appeal ?: null;
+        } catch (Exception $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Resolve / dismiss an active emergency appeal
+     *
+     * @param int $appealId
+     * @return bool
+     */
+    public function resolveEmergencyAppeal(int $appealId): bool {
+        try {
+            $stmt = $this->db->prepare("UPDATE emergency_appeals SET is_active = 0, resolved_at = NOW() WHERE appeal_id = :appeal_id");
+            return $stmt->execute(['appeal_id' => $appealId]);
+        } catch (Exception $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Get eligible registered donors matching a blood group for emergency appeal
+     *
+     * @param string $bloodType
+     * @return array
+     */
+    public function getEligibleDonorsForAppeal(string $bloodType): array {
+        $sql = "SELECT u.user_id, u.first_name, u.last_name, u.email, u.phone, u.blood_type, 
+                       u.gender, u.city, u.created_at,
+                       MAX(d.donation_date) as last_donation_date,
+                       DATEDIFF(NOW(), MAX(d.donation_date)) as days_since_last
+                FROM users u
+                LEFT JOIN donations d ON u.user_id = d.donor_id AND d.status = 'Completed'
+                WHERE u.role = 'Donor'
+                AND u.is_active = 1
+                AND (u.eligibility_status = 'Eligible' OR u.eligibility_status IS NULL)
+                AND u.blood_type = :blood_type
+                GROUP BY u.user_id
+                HAVING last_donation_date IS NULL OR days_since_last >= 90
+                ORDER BY last_donation_date ASC";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['blood_type' => $bloodType]);
+        return $stmt->fetchAll();
     }
 
     /**
@@ -76,8 +321,11 @@ class BloodInventory {
 
     /**
      * Get count of available units of a specific blood type
+     *
+     * @param string $bloodType
+     * @return int
      */
-    public function getAvailableCountByType($bloodType) {
+    public function getAvailableCountByType(string $bloodType): int {
         $stmt = $this->db->prepare("SELECT COUNT(*) as total FROM blood_units WHERE blood_type = :blood_type AND status = 'Available'");
         $stmt->execute(['blood_type' => $bloodType]);
         return (int)($stmt->fetch()['total'] ?? 0);
@@ -86,8 +334,16 @@ class BloodInventory {
     /**
      * Dispatch blood units for a request
      * Updates blood_units, inserts distribution record, updates request status/notes.
+     *
+     * @param int $requestId
+     * @param int $hospitalId
+     * @param int $adminId
+     * @param string $bloodType
+     * @param int $unitsToDispatch
+     * @param string $targetStatus
+     * @return array
      */
-    public function dispatchUnitsForRequest($requestId, $hospitalId, $adminId, $bloodType, $unitsToDispatch, $targetStatus) {
+    public function dispatchUnitsForRequest(int $requestId, int $hospitalId, int $adminId, string $bloodType, int $unitsToDispatch, string $targetStatus): array {
         if ($unitsToDispatch == 0) {
             $reqSql = "UPDATE requests SET 
                        status = :status,

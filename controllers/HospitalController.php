@@ -155,7 +155,7 @@ class HospitalController {
         }
 
         try {
-            $this->hospitalModel->updateRequest($requestId, $hospital['hospital_id'], [
+            $updated = $this->hospitalModel->updateRequest($requestId, $hospital['hospital_id'], [
                 'blood_type'      => !empty($_POST['blood_type']) ? trim($_POST['blood_type']) : null,
                 'units_requested' => (int)($_POST['units_requested'] ?? 1),
                 'urgency'         => $_POST['urgency'] ?? 'Normal',
@@ -163,7 +163,11 @@ class HospitalController {
                 'notes'           => $_POST['notes'] ?? null,
             ]);
 
-            redirect('hospital_requests', 'Blood request updated successfully', 'success');
+            if ($updated) {
+                redirect('hospital_requests', 'Blood request updated successfully.', 'success');
+            } else {
+                redirect('hospital_requests', 'Cannot edit this request. Requests that have been marked Ready for Pickup or dispatched cannot be edited unless partially fulfilled.', 'error');
+            }
         } catch (Exception $e) {
             redirect('hospital_requests', 'Error updating request: ' . $e->getMessage(), 'error');
         }
@@ -192,9 +196,9 @@ class HospitalController {
         try {
             $deleted = $this->hospitalModel->deleteRequest($requestId, $hospital['hospital_id']);
             if ($deleted) {
-                redirect('hospital_requests', 'Blood request deleted successfully', 'success');
+                redirect('hospital_requests', 'Blood request deleted successfully.', 'success');
             } else {
-                redirect('hospital_requests', 'Cannot delete this request. Only Pending or Cancelled requests can be deleted.', 'error');
+                redirect('hospital_requests', 'Cannot delete this request. It may have already been prepared, dispatched, or fulfilled by the blood bank.', 'error');
             }
         } catch (Exception $e) {
             redirect('hospital_requests', 'Error deleting request: ' . $e->getMessage(), 'error');
@@ -386,12 +390,15 @@ class HospitalController {
         }
 
         $requestId = (int)($_POST['request_id'] ?? 0);
-        $tempVerified = isset($_POST['temp_verified']) ? 1 : 0;
+        $tempVerified = isset($_POST['temp_verified']) && $_POST['temp_verified'] == '1' ? 1 : 0;
+        $discrepancyReason = trim($_POST['discrepancy_reason'] ?? '');
+        $discrepancyNotes = trim($_POST['discrepancy_notes'] ?? '');
 
-        $result = $this->hospitalModel->confirmReceipt($requestId, $hospital['hospital_id'], $tempVerified);
+        $result = $this->hospitalModel->confirmReceipt($requestId, $hospital['hospital_id'], $tempVerified, $discrepancyReason, $discrepancyNotes);
 
         if ($result['success']) {
-            redirect('hospital_requests', 'Package arrival confirmed! Request marked as Fulfilled.', 'success');
+            $msgType = $tempVerified ? 'success' : 'warning';
+            redirect('hospital_requests', $result['message'], $msgType);
         } else {
             redirect('hospital_requests', $result['message'] ?? 'Failed to confirm receipt.', 'error');
         }

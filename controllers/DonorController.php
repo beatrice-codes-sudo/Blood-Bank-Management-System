@@ -5,7 +5,8 @@
  * Post-consolidation: user_id IS the donor ID, no separate donors table
  */
 class DonorController {
-    private $donorModel;
+    /** @var DonorModel */
+    private DonorModel $donorModel;
 
     public function __construct() {
         $this->donorModel = new DonorModel();
@@ -19,11 +20,14 @@ class DonorController {
 
         $userId = $_SESSION['user_id'];
         $donor = $this->donorModel->findByUserId($userId);
+        $bloodInventory = new BloodInventory();
+        $activeAppeal = $donor ? $bloodInventory->getActiveAppealForDonor($donor['blood_type'] ?? null) : null;
         
         $data = [
-            'donor'     => $donor,
-            'stats'     => $donor ? $this->donorModel->getStats($userId) : ['total_donations' => 0, 'last_donation_date' => null, 'total_volume_ml' => 0],
-            'donations' => $donor ? $this->donorModel->getDonationHistory($userId) : [],
+            'donor'         => $donor,
+            'stats'         => $donor ? $this->donorModel->getStats($userId) : ['total_donations' => 0, 'last_donation_date' => null, 'total_volume_ml' => 0],
+            'donations'     => $donor ? $this->donorModel->getDonationHistory($userId) : [],
+            'active_appeal' => $activeAppeal,
         ];
 
         require_once __DIR__ . '/../views/donor/dashboard.php';
@@ -194,6 +198,37 @@ class DonorController {
         ];
 
         require_once __DIR__ . '/../views/donor/donation_history.php';
+    }
+
+    /**
+     * Show official donation certificate of recognition
+     */
+    public function certificate() {
+        requireRole(ROLE_DONOR);
+
+        $userId = $_SESSION['user_id'];
+        $donor = $this->donorModel->findByUserId($userId);
+        if (!$donor) { redirect('donor_dashboard', 'Donor profile not found.', 'error'); }
+
+        $donationId = (int)($_GET['donation_id'] ?? 0);
+        $specificDonation = null;
+        if ($donationId > 0) {
+            $donations = $this->donorModel->getDonationHistory($userId);
+            foreach ($donations as $d) {
+                if ((int)$d['donation_id'] === $donationId) {
+                    $specificDonation = $d;
+                    break;
+                }
+            }
+        }
+
+        $data = [
+            'donor'    => $donor,
+            'stats'    => $this->donorModel->getStats($userId),
+            'donation' => $specificDonation,
+        ];
+
+        require_once __DIR__ . '/../views/donor/certificate.php';
     }
 
     // ================================================================

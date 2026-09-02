@@ -9,7 +9,7 @@ ob_start();
 ?>
 
 <!-- Page Header -->
-<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
     <div>
         <h1 class="font-display text-[32px] font-bold text-hemo-navy">Donors</h1>
     </div>
@@ -19,6 +19,21 @@ ob_start();
         </button>
     </div>
 </div>
+
+<?php if (!empty($_GET['critical']) && !empty($_GET['blood_type'])): ?>
+<div class="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-300 flex items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-amber-200 text-amber-900 flex items-center justify-center font-bold text-lg">
+            <i class="fas fa-bullhorn"></i>
+        </div>
+        <div>
+            <h4 class="text-sm font-bold text-amber-950">Emergency Callout Active: Blood Group <?php echo sanitize($_GET['blood_type']); ?></h4>
+            <p class="text-xs text-amber-800">Showing eligible registered donors filtered for emergency replenishment.</p>
+        </div>
+    </div>
+    <a href="<?php echo BASE_URL; ?>/index.php?page=admin_donors" class="text-xs font-bold text-amber-900 hover:underline">Clear Filter</a>
+</div>
+<?php endif; ?>
 
 <!-- Stats Grid -->
 <!-- <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -463,6 +478,25 @@ ob_start();
         searchInput.addEventListener('input', filterTable);
         bloodTypeFilter.addEventListener('change', filterTable);
         eligibilityFilter.addEventListener('change', filterTable);
+
+        // Auto-apply filters if parameters present in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const btParam = urlParams.get('blood_type');
+        const critParam = urlParams.get('critical');
+        const eligParam = urlParams.get('eligibility');
+
+        if (btParam) {
+            bloodTypeFilter.value = btParam;
+        }
+        if (critParam === '1') {
+            eligibilityFilter.value = 'Eligible';
+        } else if (eligParam) {
+            eligibilityFilter.value = eligParam;
+        }
+
+        if (btParam || critParam || eligParam) {
+            filterTable();
+        }
     });
 
     // Modal Helpers

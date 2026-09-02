@@ -160,23 +160,16 @@ ob_start();
                                         <i class="fas fa-key text-xs"></i> Verify PIN
                                     </button>
                                 <?php elseif ($status !== 'Fulfilled' && $status !== 'Dispatched' && $status !== 'Rejected' && $status !== 'Cancelled'): ?>
-                                    <form action="<?php echo BASE_URL; ?>/index.php?page=admin_mark_ready_pickup" method="POST" class="inline" title="Mark Ready for Pickup (Generates 6-Digit PIN)">
-                                        <input type="hidden" name="request_id" value="<?php echo $request['request_id']; ?>">
-                                        <input type="hidden" name="hospital_id" value="<?php echo $request['hospital_id'] ?? 0; ?>">
-                                        <button type="submit" class="p-2 rounded-lg bg-hemo-light-gray text-hemo-charcoal hover:bg-amber-50 hover:text-amber-700 transition-fast" title="Mark Ready for Pickup">
-                                            <i class="fas fa-box-archive text-sm"></i>
-                                        </button>
-                                    </form>
-
-                                    <form action="<?php echo BASE_URL; ?>/index.php?page=admin_dispatch_units" method="POST" class="inline">
-                                        <input type="hidden" name="request_id" value="<?php echo $request['request_id']; ?>">
-                                        <input type="hidden" name="hospital_id" value="<?php echo $request['hospital_id'] ?? 0; ?>">
-                                        <input type="hidden" name="status" value="Fulfilled">
-                                        <input type="hidden" name="units_to_dispatch" value="<?php echo (int)($request['units_requested'] ?? $request['units'] ?? 0); ?>">
-                                        <button type="submit" class="p-2 rounded-lg bg-hemo-light-gray text-hemo-charcoal hover:bg-green-50 hover:text-hemo-success transition-fast" title="Direct Fulfill" onclick="return confirm('Mark this request as fulfilled?');">
-                                            <i class="fas fa-check text-sm"></i>
-                                        </button>
-                                    </form>
+                                    <button type="button" onclick="openPrepareModal(<?php echo htmlspecialchars(json_encode([
+                                        'request_id' => $request['request_id'],
+                                        'hospital_id' => $request['hospital_id'] ?? 0,
+                                        'hospital_name' => $request['hospital_name'] ?? 'Hospital Partner',
+                                        'blood_type' => $request['blood_type'] ?? 'N/A',
+                                        'units_requested' => (int)($request['units_requested'] ?? $request['units'] ?? 0),
+                                        'units_fulfilled' => (int)($request['units_fulfilled'] ?? 0)
+                                    ])); ?>)" class="p-2 rounded-lg bg-hemo-light-gray text-hemo-charcoal hover:bg-amber-50 hover:text-amber-700 transition-fast" title="Fulfill / Prepare Request">
+                                        <i class="fas fa-boxes-packing text-sm"></i>
+                                    </button>
                                 <?php endif; ?>
                                 
                                 <form action="<?php echo BASE_URL; ?>/index.php?page=admin_delete_request" method="POST" class="inline">
@@ -251,6 +244,78 @@ ob_start();
     </div>
 </div>
 
+<!-- Prepare & Fulfill Request Modal (Supports Partial & Full Fulfillment) -->
+<div id="prepareRequestModal" class="fixed inset-0 bg-hemo-navy/50 backdrop-blur-sm z-[1001] hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform scale-95 transition-transform duration-300">
+        <div class="px-6 py-4 border-b border-hemo-border bg-gradient-to-r from-hemo-navy to-slate-800 text-white flex items-center justify-between">
+            <h3 class="text-base font-bold flex items-center gap-2">
+                <i class="fas fa-boxes-packing text-hemo-gold"></i> Fulfill / Dispatch Blood Request
+            </h3>
+            <button type="button" onclick="closeModal('prepareRequestModal')" class="text-white/70 hover:text-white"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="p-6 space-y-5">
+            <!-- Summary Info -->
+            <div class="p-4 rounded-xl bg-hemo-off-white border border-hemo-border grid grid-cols-2 gap-3 text-xs">
+                <div>
+                    <span class="text-hemo-gray block font-semibold">Hospital</span>
+                    <strong id="prepModalHospital" class="text-sm text-hemo-navy">Hospital Name</strong>
+                </div>
+                <div>
+                    <span class="text-hemo-gray block font-semibold">Blood Group</span>
+                    <span id="prepModalBloodType" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded font-bold text-white bg-hemo-red">O+</span>
+                </div>
+                <div>
+                    <span class="text-hemo-gray block font-semibold">Units Requested</span>
+                    <strong id="prepModalRequested" class="text-hemo-navy text-sm">0 units</strong>
+                </div>
+                <div>
+                    <span class="text-hemo-gray block font-semibold">Already Fulfilled</span>
+                    <strong id="prepModalFulfilled" class="text-emerald-700 text-sm">0 units</strong>
+                </div>
+            </div>
+
+            <!-- Form -->
+            <form id="prepareActionForm" method="POST" action="<?php echo BASE_URL; ?>/index.php?page=admin_mark_ready_pickup" class="space-y-4">
+                <input type="hidden" name="request_id" id="prep_request_id">
+                <input type="hidden" name="hospital_id" id="prep_hospital_id">
+                
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="block text-xs font-bold text-hemo-navy uppercase tracking-wider">
+                            Units to Allocate / Fulfill *
+                        </label>
+                        <span id="prepRemainingHint" class="text-xs text-hemo-gray">Remaining: 0 units</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <input type="number" name="units_allocated" id="prep_units_input" required min="1" max="100"
+                               class="w-full px-4 py-2.5 rounded-xl border border-hemo-border font-bold text-lg text-hemo-navy focus:border-hemo-red focus:ring-2 focus:ring-hemo-red/10 outline-none transition-fast">
+                        <span class="text-sm font-semibold text-hemo-charcoal">Units</span>
+                    </div>
+                    <p class="text-[11px] text-hemo-gray mt-1.5">
+                        Allocate requested units for full fulfillment, or enter a smaller amount to <strong>partially fulfill</strong> this requisition.
+                    </p>
+                </div>
+
+                <!-- Live Stock Depletion Warning Box -->
+                <div id="prepDepletionWarning" class="hidden"></div>
+
+                <div class="pt-3 border-t border-hemo-border grid grid-cols-2 gap-3">
+                    <button type="submit" onclick="document.getElementById('prepareActionForm').action='<?php echo BASE_URL; ?>/index.php?page=admin_mark_ready_pickup';"
+                            class="py-3 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-md transition-fast flex items-center justify-center gap-1.5 text-center">
+                        <i class="fas fa-box-archive"></i> Ready for Pickup (PIN)
+                    </button>
+                    
+                    <button type="submit" onclick="document.getElementById('prep_units_dispatch').value=document.getElementById('prep_units_input').value; document.getElementById('prepareActionForm').action='<?php echo BASE_URL; ?>/index.php?page=admin_dispatch_units';"
+                            class="py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-fast flex items-center justify-center gap-1.5 text-center">
+                        <i class="fas fa-check"></i> Direct Dispatch
+                    </button>
+                </div>
+                <input type="hidden" name="units_to_dispatch" id="prep_units_dispatch">
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Verify Release PIN Modal -->
 <div id="verifyPinModal" class="fixed inset-0 bg-hemo-navy/50 backdrop-blur-sm z-[1001] hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
     <div class="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col transform scale-95 transition-transform duration-300 overflow-hidden">
@@ -303,6 +368,58 @@ ob_start();
 function openModal(id){const m=document.getElementById(id);m.classList.remove('hidden');void m.offsetWidth;m.classList.remove('opacity-0');m.querySelector('div').classList.remove('scale-95');}
 function closeModal(id){const m=document.getElementById(id);m.classList.add('opacity-0');m.querySelector('div').classList.add('scale-95');setTimeout(()=>m.classList.add('hidden'),300);}
 
+const stockInventoryMap = <?php echo json_encode(array_column($stockSummary ?? [], null, 'blood_type')); ?>;
+
+function checkDepletionWarning() {
+    const input = document.getElementById('prep_units_input');
+    const warningBox = document.getElementById('prepDepletionWarning');
+    if (!input || !warningBox) return;
+
+    const allocated = parseInt(input.value) || 0;
+    const currentAvailable = parseInt(input.dataset.availableStock) || 0;
+    const threshold = parseInt(input.dataset.threshold) || 5;
+    const remaining = currentAvailable - allocated;
+    const bType = input.dataset.bloodType || 'Blood';
+
+    if (allocated > currentAvailable) {
+        warningBox.className = 'p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-900 flex items-start gap-2';
+        warningBox.innerHTML = `<i class="fas fa-circle-exclamation text-red-600 mt-0.5"></i> <div><strong>Insufficient Stock:</strong> Only ${currentAvailable} unit(s) of ${bType} available in central blood bank. Allocation exceeds inventory.</div>`;
+        warningBox.classList.remove('hidden');
+    } else if (remaining < threshold) {
+        warningBox.className = 'p-3 rounded-xl bg-amber-50 border border-amber-300 text-xs text-amber-900 flex items-start gap-2';
+        warningBox.innerHTML = `<i class="fas fa-triangle-exclamation text-amber-600 mt-0.5"></i> <div><strong>Critical Depletion Warning:</strong> Fulfilling ${allocated} unit(s) will drop reserve ${bType} stock to <strong>${remaining} unit(s)</strong> (below safety threshold of ${threshold}).</div>`;
+        warningBox.classList.remove('hidden');
+    } else {
+        warningBox.className = 'p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 flex items-center gap-2';
+        warningBox.innerHTML = `<i class="fas fa-shield-check text-emerald-600"></i> <span>Adequate Stock: ${remaining} unit(s) will remain in reserve after fulfillment.</span>`;
+        warningBox.classList.remove('hidden');
+    }
+}
+
+function openPrepareModal(req) {
+    document.getElementById('prep_request_id').value = req.request_id;
+    document.getElementById('prep_hospital_id').value = req.hospital_id;
+    document.getElementById('prepModalHospital').textContent = req.hospital_name;
+    document.getElementById('prepModalBloodType').textContent = req.blood_type;
+    document.getElementById('prepModalRequested').textContent = req.units_requested + ' units';
+    document.getElementById('prepModalFulfilled').textContent = req.units_fulfilled + ' units';
+
+    const remaining = Math.max(1, req.units_requested - req.units_fulfilled);
+    document.getElementById('prepRemainingHint').textContent = 'Remaining: ' + remaining + ' units';
+    
+    const stockInfo = stockInventoryMap[req.blood_type] || { unit_count: 0, min_threshold: 5 };
+    const input = document.getElementById('prep_units_input');
+    input.max = req.units_requested;
+    input.value = remaining;
+    input.dataset.availableStock = stockInfo.unit_count || 0;
+    input.dataset.threshold = stockInfo.min_threshold || 5;
+    input.dataset.bloodType = req.blood_type;
+    input.oninput = checkDepletionWarning;
+
+    checkDepletionWarning();
+    openModal('prepareRequestModal');
+}
+
 function openVerifyPinModal(requestId) {
     document.getElementById('pin_request_id').value = requestId;
     document.getElementById('pin_input').value = '';
@@ -352,10 +469,10 @@ function copyPinToClipboard(pin, btnId = 'btnCopyPinAdminReq') {
         if (btn) {
             const originalHtml = btn.innerHTML;
             btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
-            btn.classList.add('bg-green-600', 'text-white');
+            btn.classList.add('bg-green-600');
             setTimeout(() => {
                 btn.innerHTML = originalHtml;
-                btn.classList.remove('bg-green-600', 'text-white');
+                btn.classList.remove('bg-green-600');
             }, 2000);
         }
     });
@@ -373,8 +490,10 @@ async function viewRequestDetailsAdmin(id) {
         const res = await fetch(`<?php echo BASE_URL; ?>/index.php?page=admin_get_request_json&id=${id}`);
         const data = await res.json();
         
-        if (data.success && data.data) {
-            const r = data.data;
+        if (data.error) {
+            document.getElementById('viewContentAdmin').innerHTML = `<div class="text-center text-hemo-warning py-4">${data.error}</div>`;
+        } else {
+            const r = data.request;
             const urg = urgencyLabels[r.urgency] || ['Medium','text-gray-700'];
             const sc = statusLabels[r.status] || 'bg-gray-100 text-gray-600';
             
@@ -388,43 +507,71 @@ async function viewRequestDetailsAdmin(id) {
                 step = 2;
             }
 
+            const isCompleted = (s) => step > s || (step === 4 && s === 4);
+            const isCurrent = (s) => step === s && step !== 4;
+            
+            const getStepClasses = (s) => {
+                if (isCompleted(s) || (step === 4 && s === 4)) {
+                    return 'bg-emerald-600 text-white shadow-sm ring-4 ring-emerald-50';
+                } else if (isCurrent(s)) {
+                    return 'bg-blue-600 text-white shadow-md ring-4 ring-blue-50';
+                } else {
+                    return 'bg-gray-100 text-gray-400 border border-gray-200';
+                }
+            };
+
+            const getLabelClasses = (s) => {
+                if (isCompleted(s) || (step === 4 && s === 4)) {
+                    return 'text-emerald-700 font-bold';
+                } else if (isCurrent(s)) {
+                    return 'text-blue-700 font-bold';
+                } else {
+                    return 'text-gray-400 font-medium';
+                }
+            };
+
             const stepperHtml = `
-                <div class="py-3 px-2 bg-hemo-off-white rounded-xl border border-hemo-border mb-4">
+                <div class="py-4 px-3 bg-slate-50 rounded-2xl border border-slate-200 mb-5">
                     <div class="grid grid-cols-4 relative">
-                        <div class="absolute top-1/2 left-1/8 right-1/8 h-1 bg-gray-200 -translate-y-1/2 z-0">
-                            <div class="h-full bg-hemo-red transition-all duration-500" style="width: ${((step - 1) / 3) * 100}%"></div>
+                        <!-- Connecting Line -->
+                        <div class="absolute top-1/2 left-1/8 right-1/8 h-1.5 bg-gray-200 -translate-y-1/2 z-0 rounded-full overflow-hidden">
+                            <div class="h-full bg-gradient-to-r from-emerald-500 via-teal-500 to-blue-600 transition-all duration-500" style="width: ${((step - 1) / 3) * 100}%"></div>
                         </div>
 
+                        <!-- Step 1: Submitted -->
                         <div class="relative z-10 flex flex-col items-center text-center">
-                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${step >= 1 ? 'bg-hemo-red text-white shadow-md' : 'bg-gray-200 text-gray-500'}">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${getStepClasses(1)}">
                                 <i class="fas fa-check"></i>
                             </div>
-                            <span class="text-[11px] font-bold mt-1 text-hemo-navy">1. Submitted</span>
-                            <span class="text-[9px] text-hemo-gray">${r.created_at ? new Date(r.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : ''}</span>
+                            <span class="text-[11px] mt-1.5 ${getLabelClasses(1)}">1. Submitted</span>
+                            <span class="text-[9px] text-gray-400">${r.created_at ? new Date(r.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : ''}</span>
                         </div>
 
+                        <!-- Step 2: Ready for Pickup -->
                         <div class="relative z-10 flex flex-col items-center text-center">
-                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${step >= 2 ? 'bg-hemo-red text-white shadow-md' : 'bg-gray-200 text-gray-500'}">
-                                ${step >= 2 ? '<i class="fas fa-box-archive"></i>' : '2'}
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${getStepClasses(2)}">
+                                ${isCompleted(2) ? '<i class="fas fa-check"></i>' : (isCurrent(2) ? '<i class="fas fa-box-archive"></i>' : '2')}
                             </div>
-                            <span class="text-[11px] font-bold mt-1 ${step >= 2 ? 'text-hemo-navy' : 'text-gray-400'}">2. Ready</span>
-                            <span class="text-[9px] text-hemo-gray">${r.release_pin ? 'PIN Generated' : 'Pending'}</span>
+                            <span class="text-[11px] mt-1.5 ${getLabelClasses(2)}">2. Ready</span>
+                            <span class="text-[9px] text-gray-400">${r.release_pin ? 'PIN Generated' : 'Pending'}</span>
                         </div>
 
+                        <!-- Step 3: In Transit -->
                         <div class="relative z-10 flex flex-col items-center text-center">
-                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${step >= 3 ? 'bg-hemo-red text-white shadow-md' : 'bg-gray-200 text-gray-500'}">
-                                ${step >= 3 ? '<i class="fas fa-truck-fast"></i>' : '3'}
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${getStepClasses(3)}">
+                                ${isCompleted(3) ? '<i class="fas fa-check"></i>' : (isCurrent(3) ? '<i class="fas fa-truck-fast"></i>' : '3')}
                             </div>
-                            <span class="text-[11px] font-bold mt-1 ${step >= 3 ? 'text-hemo-navy' : 'text-gray-400'}">3. Dispatched</span>
-                            <span class="text-[9px] text-hemo-gray">${r.dispatched_at ? 'In Transit' : 'Pending'}</span>
+                            <span class="text-[11px] mt-1.5 ${getLabelClasses(3)}">3. In Transit</span>
+                            <span class="text-[9px] text-gray-400">${r.dispatched_at ? 'Driver Dispatched' : 'Pending'}</span>
                         </div>
 
+                        <!-- Step 4: Received / Rejected -->
                         <div class="relative z-10 flex flex-col items-center text-center">
-                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${step >= 4 ? 'bg-hemo-success text-white shadow-md' : 'bg-gray-200 text-gray-500'}">
-                                ${step >= 4 ? '<i class="fas fa-check-double"></i>' : '4'}
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${r.status === 'Rejected' ? 'bg-red-600 text-white shadow-sm ring-4 ring-red-100' : getStepClasses(4)}">
+                                ${r.status === 'Rejected' ? '<i class="fas fa-triangle-exclamation"></i>' : (step >= 4 ? '<i class="fas fa-check-double"></i>' : '4')}
                             </div>
-                            <span class="text-[11px] font-bold mt-1 ${step >= 4 ? 'text-hemo-success' : 'text-gray-400'}">4. Delivered</span>
-                            <span class="text-[9px] text-hemo-gray">${r.received_at ? 'Received' : 'Pending'}</span>
+                            <span class="text-[11px] mt-1.5 ${r.status === 'Rejected' ? 'text-red-700 font-bold' : getLabelClasses(4)}">${r.status === 'Rejected' ? '4. Rejected' : '4. Delivered'}</span>
+                            <span class="text-[9px] text-gray-400">${r.received_at ? (r.status === 'Rejected' ? 'Discrepancy' : 'Received') : 'Pending'}</span>
                         </div>
                     </div>
                 </div>
@@ -463,6 +610,7 @@ async function viewRequestDetailsAdmin(id) {
                             <div><span class="text-hemo-gray block">Phone / Reg:</span> <strong>${r.collected_by_phone || 'N/A'}</strong></div>
                             <div><span class="text-hemo-gray block">Dispatched:</span> <strong>${r.dispatched_at ? new Date(r.dispatched_at).toLocaleString() : 'N/A'}</strong></div>
                             <div><span class="text-hemo-gray block">Delivery Received:</span> <strong>${r.received_at ? new Date(r.received_at).toLocaleString() : 'In Transit'}</strong></div>
+                            <div class="col-span-2 pt-1 border-t border-indigo-100"><span class="text-hemo-gray block">Cold-Chain Quality Status:</span> ${r.received_at ? (r.temp_verified == 1 || r.temp_verified === true ? '<strong class="text-emerald-700 font-bold"><i class="fas fa-shield-check"></i> Intact (Verified 2°C - 6°C)</strong>' : '<strong class="text-red-600 font-bold"><i class="fas fa-triangle-exclamation"></i> Compromised / Discrepancy Reported</strong>') : '<strong class="text-blue-700 font-bold"><i class="fas fa-lock"></i> Sealed in Transit</strong>'}</div>
                         </div>
                     </div>
                 `;

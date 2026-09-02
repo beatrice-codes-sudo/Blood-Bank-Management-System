@@ -126,24 +126,24 @@ ob_start();
                         </td>
                         <td class="px-6 py-4">
                             <?php 
-                            $statusClass = 'bg-gray-100 text-gray-700';
-                            $displayStatus = $req['status'];
-
-                            if (($req['collection_status'] ?? '') === 'Ready for Pickup') {
-                                $statusClass = 'bg-amber-100 text-amber-800 border border-amber-300';
-                                $displayStatus = 'Ready for Pickup';
+                            if ($req['status'] === 'Rejected' || $req['status'] === 'Cancelled') {
+                                $statusClass = 'bg-red-100 text-hemo-warning border border-red-200';
+                                $displayStatus = $req['status'];
+                            } elseif ($req['status'] === 'Fulfilled' || (($req['collection_status'] ?? '') === 'Received' && (int)($req['temp_verified'] ?? 1) === 1)) {
+                                $statusClass = 'bg-green-100 text-hemo-success border border-green-200';
+                                $displayStatus = 'Fulfilled (Received)';
                             } elseif ($req['status'] === 'Dispatched' || ($req['collection_status'] ?? '') === 'Dispatched') {
                                 $statusClass = 'bg-indigo-100 text-indigo-700 border border-indigo-200';
                                 $displayStatus = 'In Transit';
-                            } elseif ($req['status'] === 'Pending' || $req['status'] === 'Processing') {
-                                $statusClass = 'bg-amber-100 text-hemo-amber';
-                            } elseif ($req['status'] === 'Fulfilled' || ($req['collection_status'] ?? '') === 'Received') {
-                                $statusClass = 'bg-green-100 text-hemo-success';
-                                $displayStatus = 'Fulfilled (Received)';
+                            } elseif (($req['collection_status'] ?? '') === 'Ready for Pickup') {
+                                $statusClass = 'bg-amber-100 text-amber-800 border border-amber-300';
+                                $displayStatus = 'Ready for Pickup';
                             } elseif ($req['status'] === 'Partially Fulfilled') {
-                                $statusClass = 'bg-blue-100 text-blue-500';
-                            } elseif ($req['status'] === 'Rejected' || $req['status'] === 'Cancelled') {
-                                $statusClass = 'bg-red-100 text-hemo-warning';
+                                $statusClass = 'bg-blue-100 text-blue-700 border border-blue-200';
+                                $displayStatus = 'Partially Fulfilled';
+                            } else {
+                                $statusClass = 'bg-amber-100 text-hemo-amber';
+                                $displayStatus = $req['status'];
                             }
                             ?>
                             <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold <?php echo $statusClass; ?> request-status">
@@ -164,7 +164,14 @@ ob_start();
                                 </button>
                             <?php endif; ?>
 
-                            <?php if (in_array($req['status'], ['Pending', 'Processing', 'Partially Fulfilled'])): ?>
+                            <?php 
+                            $canEdit = ($req['status'] === 'Partially Fulfilled') 
+                                || (in_array($req['status'], ['Pending', 'Processing']) 
+                                    && ($req['collection_status'] ?? '') !== 'Ready for Pickup' 
+                                    && ($req['collection_status'] ?? '') !== 'Dispatched' 
+                                    && ($req['collection_status'] ?? '') !== 'Received');
+                            if ($canEdit): 
+                            ?>
                             <button onclick="openEditModal(<?php echo htmlspecialchars(json_encode([
                                 'id' => $req['request_id'],
                                 'blood_type' => $req['blood_type'],
@@ -176,7 +183,14 @@ ob_start();
                                 <i class="fas fa-edit text-sm"></i>
                             </button>
                             <?php endif; ?>
-                            <?php if (in_array($req['status'], ['Pending', 'Cancelled'])): ?>
+                            <?php 
+                            $canDelete = in_array($req['status'], ['Pending', 'Cancelled', 'Rejected']) 
+                                && ($req['collection_status'] ?? '') !== 'Ready for Pickup'
+                                && ($req['collection_status'] ?? '') !== 'Dispatched'
+                                && ($req['collection_status'] ?? '') !== 'Received'
+                                && (int)($req['units_fulfilled'] ?? 0) === 0;
+                            if ($canDelete): 
+                            ?>
                             <button onclick="openDeleteModal(<?php echo $req['request_id']; ?>)" class="p-2 rounded-lg bg-hemo-light-gray text-hemo-charcoal hover:bg-red-50 hover:text-hemo-warning transition-fast" title="Delete Request">
                                 <i class="fas fa-trash text-sm"></i>
                             </button>
@@ -319,37 +333,69 @@ ob_start();
 
 <!-- Confirm Receipt Modal -->
 <div id="confirmReceiptModal" class="fixed inset-0 bg-hemo-navy/50 backdrop-blur-sm z-[1001] hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col transform scale-95 transition-transform duration-300 overflow-hidden">
-        <div class="px-6 py-4 border-b border-hemo-border bg-green-50 flex items-center justify-between">
-            <h3 class="text-base font-bold text-green-900 flex items-center gap-2">
-                <i class="fas fa-box-check text-hemo-success"></i> Confirm Package Arrival
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col transform scale-95 transition-transform duration-300 overflow-hidden">
+        <div id="receiptModalHeader" class="px-6 py-4 border-b border-hemo-border bg-emerald-50 flex items-center justify-between transition-colors duration-300">
+            <h3 id="receiptModalTitle" class="text-base font-bold text-emerald-950 flex items-center gap-2">
+                <i class="fas fa-truck-ramp-box text-emerald-600"></i> Confirm Blood Delivery Arrival
             </h3>
-            <button type="button" onclick="closeModal('confirmReceiptModal')" class="text-green-800 hover:text-hemo-red"><i class="fas fa-times"></i></button>
+            <button type="button" onclick="closeModal('confirmReceiptModal')" class="text-emerald-800 hover:text-hemo-red"><i class="fas fa-times"></i></button>
         </div>
-        <form action="<?php echo BASE_URL; ?>/index.php?page=hospital_confirm_receipt" method="POST" class="p-6">
+        <form action="<?php echo BASE_URL; ?>/index.php?page=hospital_confirm_receipt" method="POST" class="p-6 space-y-4">
             <input type="hidden" name="request_id" id="receipt_request_id">
             
-            <div class="text-center mb-6">
-                <div class="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3 text-hemo-success text-2xl">
-                    <i class="fas fa-truck-ramp-box"></i>
-                </div>
-                <h4 class="text-lg font-bold text-hemo-navy">Acknowledge Blood Delivery</h4>
-                <p class="text-xs text-hemo-charcoal mt-1">Confirm that the driver has delivered the blood units to the hospital blood transfusion lab.</p>
+            <div class="text-center pb-1">
+                <p class="text-xs text-hemo-charcoal">
+                    Verify the physical blood consignment handed over by the courier / ambulance runner.
+                </p>
             </div>
 
-            <div class="bg-hemo-light-gray p-4 rounded-xl mb-6 border border-hemo-border">
+            <!-- Cold-Chain Checkbox Card -->
+            <div id="tempCheckCard" class="bg-emerald-50/70 p-4 rounded-xl border-2 border-emerald-200 transition-all duration-300">
                 <label class="flex items-start gap-3 cursor-pointer">
-                    <input type="checkbox" name="temp_verified" value="1" checked required class="mt-1 w-4 h-4 text-hemo-success rounded border-gray-300 focus:ring-hemo-success">
-                    <span class="text-xs text-hemo-charcoal leading-relaxed">
-                        <strong>Cold-Chain Integrity Check:</strong> I confirm the temperature-controlled cool box arrived intact (2°C - 6°C) and the seal was uncompromised.
-                    </span>
+                    <input type="checkbox" name="temp_verified" id="temp_verified_checkbox" value="1" checked onchange="toggleDiscrepancySection(this)"
+                           class="mt-0.5 w-5 h-5 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500 cursor-pointer">
+                    <div class="flex-1">
+                        <span class="text-xs font-bold text-emerald-950 block">Cold-Chain & Security Seal Intact</span>
+                        <span class="text-[11px] text-emerald-800 leading-relaxed block mt-0.5">
+                            Temperature verified between 2°C - 6°C, cool box seal uncompromised, and units accepted for clinical transfusion.
+                        </span>
+                    </div>
                 </label>
             </div>
 
-            <div class="flex gap-3">
-                <button type="button" onclick="closeModal('confirmReceiptModal')" class="flex-1 py-2.5 rounded-lg bg-hemo-light-gray text-hemo-charcoal font-semibold text-sm hover:bg-gray-200 transition-fast">Cancel</button>
-                <button type="submit" class="flex-1 py-2.5 rounded-lg bg-hemo-success hover:bg-green-700 text-white font-bold text-sm shadow-md transition-fast">
-                    Confirm & Complete
+            <!-- Discrepancy & Rejection Section (Revealed when unchecked) -->
+            <div id="discrepancySection" class="hidden space-y-3 bg-red-50 p-4 rounded-xl border border-red-200">
+                <div class="flex items-center gap-2 text-xs font-bold text-red-900 uppercase tracking-wider">
+                    <i class="fas fa-triangle-exclamation text-hemo-warning"></i> Quality Incident / Discrepancy Report
+                </div>
+                <p class="text-[11px] text-red-800">
+                    Unchecking cold-chain integrity will reject this delivery for transfusion safety and alert the Central Blood Bank Quality Team.
+                </p>
+
+                <div>
+                    <label class="block text-xs font-semibold text-hemo-navy mb-1">Primary Reason for Discrepancy *</label>
+                    <select name="discrepancy_reason" id="discrepancy_reason" class="w-full px-3 py-2 rounded-lg border border-hemo-border text-xs bg-white focus:border-hemo-red outline-none">
+                        <option value="Broken / Tampered Security Seal">Broken / Tampered Security Seal</option>
+                        <option value="Temperature Exceeded (>6°C / Warm Coolbox)">Temperature Exceeded (>6°C / Warm Coolbox)</option>
+                        <option value="Damaged / Leaking Blood Bags">Damaged / Leaking Blood Bags</option>
+                        <option value="Incorrect Blood Group / Label Mismatch">Incorrect Blood Group / Label Mismatch</option>
+                        <option value="Haemolysis / Clot Observed in Unit">Haemolysis / Clot Observed in Unit</option>
+                        <option value="Excessive Transit Delay (>4 Hours)">Excessive Transit Delay (>4 Hours)</option>
+                        <option value="Other Discrepancy">Other Quality Discrepancy</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-hemo-navy mb-1">Incident Details / Laboratory Notes *</label>
+                    <textarea name="discrepancy_notes" id="discrepancy_notes" rows="2" placeholder="Describe the physical condition of the box, measured temp, or package defect..."
+                              class="w-full px-3 py-2 rounded-lg border border-hemo-border text-xs bg-white focus:border-hemo-red outline-none"></textarea>
+                </div>
+            </div>
+
+            <div class="flex gap-3 pt-2">
+                <button type="button" onclick="closeModal('confirmReceiptModal')" class="flex-1 py-2.5 rounded-xl bg-hemo-light-gray text-hemo-charcoal font-semibold text-xs hover:bg-gray-200 transition-fast">Cancel</button>
+                <button type="submit" id="btnConfirmReceiptSubmit" class="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5">
+                    <i class="fas fa-check-double"></i> <span>Confirm & Accept Delivery</span>
                 </button>
             </div>
         </form>
@@ -437,7 +483,40 @@ ob_start();
 
     function openConfirmReceiptModal(id) {
         document.getElementById('receipt_request_id').value = id;
+        const checkbox = document.getElementById('temp_verified_checkbox');
+        if (checkbox) {
+            checkbox.checked = true;
+            toggleDiscrepancySection(checkbox);
+        }
         openModal('confirmReceiptModal');
+    }
+
+    function toggleDiscrepancySection(checkbox) {
+        const section = document.getElementById('discrepancySection');
+        const header = document.getElementById('receiptModalHeader');
+        const card = document.getElementById('tempCheckCard');
+        const btn = document.getElementById('btnConfirmReceiptSubmit');
+        const reason = document.getElementById('discrepancy_reason');
+        const notes = document.getElementById('discrepancy_notes');
+        if (!section || !header || !card || !btn) return;
+
+        if (checkbox.checked) {
+            section.classList.add('hidden');
+            header.className = 'px-6 py-4 border-b border-hemo-border bg-emerald-50 flex items-center justify-between transition-colors duration-300';
+            card.className = 'bg-emerald-50/70 p-4 rounded-xl border-2 border-emerald-200 transition-all duration-300';
+            btn.className = 'flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5';
+            btn.innerHTML = '<i class="fas fa-check-double"></i> <span>Confirm & Accept Delivery</span>';
+            if (reason) reason.required = false;
+            if (notes) notes.required = false;
+        } else {
+            section.classList.remove('hidden');
+            header.className = 'px-6 py-4 border-b border-hemo-border bg-red-50 flex items-center justify-between transition-colors duration-300';
+            card.className = 'bg-red-50/70 p-4 rounded-xl border-2 border-red-300 transition-all duration-300';
+            btn.className = 'flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5';
+            btn.innerHTML = '<i class="fas fa-shield-xmark"></i> <span>Reject & Report Discrepancy</span>';
+            if (reason) reason.required = true;
+            if (notes) notes.required = true;
+        }
     }
 
     function copyPinToClipboard(pin, btnId = 'btnCopyPin') {
@@ -495,49 +574,72 @@ ob_start();
                     step = 2;
                 }
 
+                const isCompleted = (s) => step > s || (step === 4 && s === 4);
+                const isCurrent = (s) => step === s && step !== 4;
+                
+                const getStepClasses = (s) => {
+                    if (isCompleted(s) || (step === 4 && s === 4)) {
+                        return 'bg-emerald-600 text-white shadow-sm ring-4 ring-emerald-50';
+                    } else if (isCurrent(s)) {
+                        return 'bg-blue-600 text-white shadow-md ring-4 ring-blue-50';
+                    } else {
+                        return 'bg-gray-100 text-gray-400 border border-gray-200';
+                    }
+                };
+
+                const getLabelClasses = (s) => {
+                    if (isCompleted(s) || (step === 4 && s === 4)) {
+                        return 'text-emerald-700 font-bold';
+                    } else if (isCurrent(s)) {
+                        return 'text-blue-700 font-bold';
+                    } else {
+                        return 'text-gray-400 font-medium';
+                    }
+                };
+
                 // Render 4-Step Stepper HTML
                 const stepperHtml = `
-                    <div class="py-3 px-2 bg-hemo-off-white rounded-xl border border-hemo-border mb-6">
+                    <div class="py-4 px-3 bg-slate-50 rounded-2xl border border-slate-200 mb-6">
                         <div class="grid grid-cols-4 relative">
                             <!-- Connecting Line -->
-                            <div class="absolute top-1/2 left-1/8 right-1/8 h-1 bg-gray-200 -translate-y-1/2 z-0">
-                                <div class="h-full bg-hemo-red transition-all duration-500" style="width: ${((step - 1) / 3) * 100}%"></div>
+                            <div class="absolute top-1/2 left-1/8 right-1/8 h-1.5 bg-gray-200 -translate-y-1/2 z-0 rounded-full overflow-hidden">
+                                <div class="h-full bg-gradient-to-r from-emerald-500 via-teal-500 to-blue-600 transition-all duration-500" style="width: ${((step - 1) / 3) * 100}%"></div>
                             </div>
 
                             <!-- Step 1: Submitted -->
                             <div class="relative z-10 flex flex-col items-center text-center">
-                                <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${step >= 1 ? 'bg-hemo-red text-white shadow-md' : 'bg-gray-200 text-gray-500'}">
+                                <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${getStepClasses(1)}">
                                     <i class="fas fa-check"></i>
                                 </div>
-                                <span class="text-[11px] font-bold mt-1 text-hemo-navy">1. Submitted</span>
-                                <span class="text-[9px] text-hemo-gray">${r.created_at ? new Date(r.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : ''}</span>
+                                <span class="text-[11px] mt-1.5 ${getLabelClasses(1)}">1. Submitted</span>
+                                <span class="text-[9px] text-gray-400">${r.created_at ? new Date(r.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : ''}</span>
                             </div>
 
                             <!-- Step 2: Ready for Pickup -->
                             <div class="relative z-10 flex flex-col items-center text-center">
-                                <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${step >= 2 ? 'bg-hemo-red text-white shadow-md' : 'bg-gray-200 text-gray-500'}">
-                                    ${step >= 2 ? '<i class="fas fa-box-archive"></i>' : '2'}
+                                <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${getStepClasses(2)}">
+                                    ${isCompleted(2) ? '<i class="fas fa-check"></i>' : (isCurrent(2) ? '<i class="fas fa-box-archive"></i>' : '2')}
                                 </div>
-                                <span class="text-[11px] font-bold mt-1 ${step >= 2 ? 'text-hemo-navy' : 'text-gray-400'}">2. Ready</span>
-                                <span class="text-[9px] text-hemo-gray">${r.release_pin ? 'PIN Generated' : 'Pending'}</span>
+                                <span class="text-[11px] mt-1.5 ${getLabelClasses(2)}">2. Ready</span>
+                                <span class="text-[9px] text-gray-400">${r.release_pin ? 'PIN Generated' : 'Pending'}</span>
                             </div>
 
                             <!-- Step 3: Dispatched -->
                             <div class="relative z-10 flex flex-col items-center text-center">
-                                <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${step >= 3 ? 'bg-hemo-red text-white shadow-md' : 'bg-gray-200 text-gray-500'}">
-                                    ${step >= 3 ? '<i class="fas fa-truck-fast"></i>' : '3'}
+                                <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${getStepClasses(3)}">
+                                    ${isCompleted(3) ? '<i class="fas fa-check"></i>' : (isCurrent(3) ? '<i class="fas fa-truck-fast"></i>' : '3')}
                                 </div>
-                                <span class="text-[11px] font-bold mt-1 ${step >= 3 ? 'text-hemo-navy' : 'text-gray-400'}">3. In Transit</span>
-                                <span class="text-[9px] text-hemo-gray">${r.dispatched_at ? 'Driver Dispatched' : 'Pending Handover'}</span>
+                                <span class="text-[11px] mt-1.5 ${getLabelClasses(3)}">3. In Transit</span>
+                                <span class="text-[9px] text-gray-400">${r.dispatched_at ? 'Driver Dispatched' : 'Pending Handover'}</span>
                             </div>
 
-                            <!-- Step 4: Received -->
+                            <!-- Step 4: Received / Rejected -->
                             <div class="relative z-10 flex flex-col items-center text-center">
-                                <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${step >= 4 ? 'bg-hemo-success text-white shadow-md' : 'bg-gray-200 text-gray-500'}">
-                                    ${step >= 4 ? '<i class="fas fa-check-double"></i>' : '4'}
+                                <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${r.status === 'Rejected' ? 'bg-red-600 text-white shadow-sm ring-4 ring-red-100' : getStepClasses(4)}">
+                                    ${r.status === 'Rejected' ? '<i class="fas fa-triangle-exclamation"></i>' : (step >= 4 ? '<i class="fas fa-check-double"></i>' : '4')}
                                 </div>
-                                <span class="text-[11px] font-bold mt-1 ${step >= 4 ? 'text-hemo-success' : 'text-gray-400'}">4. Received</span>
-                                <span class="text-[9px] text-hemo-gray">${r.received_at ? 'Verified' : 'Awaiting Delivery'}</span>
+                                <span class="text-[11px] mt-1.5 ${r.status === 'Rejected' ? 'text-red-700 font-bold' : getLabelClasses(4)}">${r.status === 'Rejected' ? '4. Rejected' : '4. Received'}</span>
+                                <span class="text-[9px] text-gray-400">${r.received_at ? (r.status === 'Rejected' ? 'Discrepancy' : 'Verified') : 'Awaiting Delivery'}</span>
                             </div>
                         </div>
                     </div>
@@ -584,7 +686,7 @@ ob_start();
                                 <div><span class="text-hemo-gray block">Driver / Runner:</span> <strong>${r.collected_by_name || 'N/A'}</strong></div>
                                 <div><span class="text-hemo-gray block">Phone / Reg:</span> <strong>${r.collected_by_phone || 'N/A'}</strong></div>
                                 <div><span class="text-hemo-gray block">Dispatched At:</span> <strong>${r.dispatched_at ? new Date(r.dispatched_at).toLocaleString() : 'N/A'}</strong></div>
-                                <div><span class="text-hemo-gray block">Cold-Chain Seal:</span> <strong class="text-hemo-success"><i class="fas fa-shield-check"></i> Intact</strong></div>
+                                <div><span class="text-hemo-gray block">Cold-Chain Seal:</span> ${r.received_at ? (r.temp_verified == 1 || r.temp_verified === true ? '<strong class="text-emerald-700 font-bold"><i class="fas fa-shield-check"></i> Intact (2°C - 6°C)</strong>' : '<strong class="text-red-600 font-bold"><i class="fas fa-triangle-exclamation"></i> Compromised / Rejected</strong>') : '<strong class="text-blue-700 font-bold"><i class="fas fa-lock"></i> Sealed in Transit</strong>'}</div>
                             </div>
                         </div>
                     `;
@@ -613,6 +715,14 @@ ob_start();
                             <span class="text-base font-mono font-bold text-hemo-red bg-hemo-light-red px-2.5 py-1 rounded-lg">REQ-${String(r.request_id).padStart(4, '0')}</span>
                             <span class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-bold bg-hemo-red text-white">
                                 <i class="fas fa-droplet text-[9px]"></i> ${bType}
+                            </span>
+                            <span class="px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-tight ${
+                                r.status === 'Rejected' || r.status === 'Cancelled' ? 'bg-red-100 text-hemo-warning border border-red-200' :
+                                (r.status === 'Fulfilled' ? 'bg-green-100 text-hemo-success border border-green-200' :
+                                (r.collection_status === 'Ready for Pickup' ? 'bg-amber-100 text-amber-800 border border-amber-300' :
+                                (r.status === 'Dispatched' ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' : 'bg-gray-100 text-gray-700')))
+                            }">
+                                ${r.status}
                             </span>
                         </div>
                         <div>

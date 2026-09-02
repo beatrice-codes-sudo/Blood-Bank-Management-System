@@ -150,6 +150,31 @@ switch ($page) {
         $admin->getRequestDetailsJson();
         break;
 
+    case 'admin_add_blood_units':
+        $admin = new AdminController();
+        $admin->addBloodUnits();
+        break;
+
+    case 'admin_update_thresholds':
+        $admin = new AdminController();
+        $admin->updateStockThresholds();
+        break;
+
+    case 'admin_send_emergency_appeal':
+        $admin = new AdminController();
+        $admin->sendEmergencyAppeal();
+        break;
+
+    case 'admin_get_eligible_donors_ajax':
+        $admin = new AdminController();
+        $admin->getEligibleDonorsAjax();
+        break;
+
+    case 'admin_resolve_appeal':
+        $admin = new AdminController();
+        $admin->resolveEmergencyAppeal();
+        break;
+
     // === Admin Requests Management ===
     case 'admin_requests_donor':
         $admin = new AdminController();
@@ -298,10 +323,15 @@ switch ($page) {
         $donorCtrl->cancelAppointment();
         break;
 
-    // === Donor History ===
+    // === Donor History & Certificate ===
     case 'donor_history':
         $donorCtrl = new DonorController();
         $donorCtrl->donationHistory();
+        break;
+
+    case 'donor_certificate':
+        $donorCtrl = new DonorController();
+        $donorCtrl->certificate();
         break;
 
     // === Donor Profile ===

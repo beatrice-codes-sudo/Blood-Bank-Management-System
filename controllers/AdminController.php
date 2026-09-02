@@ -39,9 +39,11 @@ class AdminController {
             'total_hospitals' => $this->hospitalModel->countAll(),
             'total_units'     => $this->bloodInventory->getTotalUnits(),
             'pending_requests'=> $this->bloodInventory->getPendingRequests(),
-            'inventory'       => $this->bloodInventory->getInventorySummary(),
+            'inventory'       => $this->bloodInventory->getInventorySummaryWithThresholds(),
             'recent_users'    => $this->userModel->getRecentRegistrations(8),
-            'critical_stock'  => $this->bloodInventory->getCriticalStock(5),
+            'critical_stock'  => $this->bloodInventory->getCriticalStock(),
+            'thresholds'      => $this->bloodInventory->getThresholds(),
+            'active_appeals'  => $this->bloodInventory->getActiveAppeals(),
         ];
 
         require_once __DIR__ . '/../views/admin/dashboard.php';
@@ -281,6 +283,7 @@ class AdminController {
         $requests     = $this->hospitalModel->getAllRequests($hospitalId);
         $requestStats = $this->hospitalModel->getExtendedRequestStats($hospitalId);
         $appointments = $this->hospitalModel->getAppointments($hospitalId);
+        $stockSummary = $this->bloodInventory->getInventorySummaryWithThresholds();
 
         require_once __DIR__ . '/../views/admin/hospital_profile.php';
     }
@@ -320,20 +323,32 @@ class AdminController {
             redirect('admin_hospitals');
         }
 
-        $requestId  = (int)($_POST['request_id'] ?? 0);
-        $hospitalId = (int)($_POST['hospital_id'] ?? 0);
+        $requestId      = (int)($_POST['request_id'] ?? 0);
+        $hospitalId     = (int)($_POST['hospital_id'] ?? 0);
+        $unitsAllocated = (int)($_POST['units_allocated'] ?? 0);
 
         if (!$requestId) {
             redirect('admin_requests', 'Invalid request parameters', 'error');
         }
 
         try {
+            $req = $this->hospitalModel->getRequestByIdAdmin($requestId);
+            $totalRequested = (int)($req['units_requested'] ?? 0);
+            if ($unitsAllocated <= 0) {
+                $unitsAllocated = $totalRequested;
+            }
+            $targetStatus = ($unitsAllocated < $totalRequested) ? 'Partially Fulfilled' : 'Processing';
+
             // Generate secure 6-digit numeric PIN
             $releasePin = sprintf('%06d', mt_rand(100000, 999999));
-            $this->hospitalModel->markReadyForPickup($requestId, $releasePin);
+            $this->hospitalModel->markReadyForPickup($requestId, $releasePin, $unitsAllocated, $targetStatus);
+
+            $msg = ($unitsAllocated < $totalRequested)
+                ? "Request marked Ready for Pickup with partial fulfillment ({$unitsAllocated}/{$totalRequested} units). 6-Digit PIN generated."
+                : "Request marked Ready for Pickup (Full allocation: {$unitsAllocated} units). 6-Digit PIN generated.";
 
             $targetRoute = ($hospitalId > 0) ? 'admin_hospital_profile&hospital_id=' . $hospitalId : 'admin_requests';
-            redirect($targetRoute, 'Request marked Ready for Pickup. 6-Digit Release PIN generated.', 'success');
+            redirect($targetRoute, $msg, 'success');
         } catch (Exception $e) {
             $targetRoute = ($hospitalId > 0) ? 'admin_hospital_profile&hospital_id=' . $hospitalId : 'admin_requests';
             redirect($targetRoute, 'Error updating pickup status: ' . $e->getMessage(), 'error');
@@ -478,33 +493,36 @@ class AdminController {
         requireRole(ROLE_ADMIN);
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            redirect('admin_hospitals');
+            redirect('admin_requests');
         }
 
         $requestId       = (int)($_POST['request_id'] ?? 0);
         $hospitalId      = (int)($_POST['hospital_id'] ?? 0);
         $unitsToDispatch = (int)($_POST['units_to_dispatch'] ?? 0);
-        $targetStatus    = trim($_POST['status'] ?? 'Pending');
+        $targetRoute     = ($hospitalId > 0) ? 'admin_hospital_profile&hospital_id=' . $hospitalId : 'admin_requests';
 
-        if (!$requestId || !$hospitalId || $unitsToDispatch < 0) {
-            redirect('admin_hospitals', 'Invalid parameters', 'error');
+        if (!$requestId || $unitsToDispatch <= 0) {
+            redirect($targetRoute, 'Please specify valid units to dispatch.', 'error');
         }
 
         $request = $this->hospitalModel->getRequestByIdAdmin($requestId);
         if (!$request) {
-            redirect('admin_hospitals', 'Request not found', 'error');
+            redirect($targetRoute, 'Request not found', 'error');
         }
+
+        $totalRequested = (int)($request['units_requested'] ?? 0);
+        $targetStatus   = ($unitsToDispatch < $totalRequested) ? 'Partially Fulfilled' : 'Fulfilled';
 
         $bloodInventory = new BloodInventory();
         $adminId = $_SESSION['user_id'];
         $bloodType = $request['blood_type'];
 
-        $result = $bloodInventory->dispatchUnitsForRequest($requestId, $hospitalId, $adminId, $bloodType, $unitsToDispatch, $targetStatus);
+        $result = $bloodInventory->dispatchUnitsForRequest($requestId, $request['hospital_id'], $adminId, $bloodType, $unitsToDispatch, $targetStatus);
 
         if ($result['success']) {
-            redirect('admin_hospital_profile&hospital_id=' . $hospitalId, $result['message'], 'success');
+            redirect($targetRoute, $result['message'], 'success');
         } else {
-            redirect('admin_hospital_profile&hospital_id=' . $hospitalId, $result['message'], 'error');
+            redirect($targetRoute, $result['message'], 'error');
         }
     }
 
@@ -523,6 +541,7 @@ class AdminController {
         $requests = $this->requestModel->getAllRequests($limit, $offset, $search, $status);
         $totalRequests = $this->requestModel->getTotalRequestsCount($search, $status);
         $totalPages = ceil($totalRequests / $limit);
+        $stockSummary = $this->bloodInventory->getInventorySummaryWithThresholds();
 
         require_once __DIR__ . '/../views/admin/requests.php';
     }
@@ -620,5 +639,138 @@ class AdminController {
             redirect('admin_requests', 'Error updating request: ' . $e->getMessage(), 'error');
         }
     }
-    
+
+    /**
+     * Add batch of blood units into inventory (Intake)
+     */
+    public function addBloodUnits() {
+        requireRole(ROLE_ADMIN);
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirect('admin_dashboard');
+        }
+
+        $bloodType = trim($_POST['blood_type'] ?? '');
+        $unitsCount = (int)($_POST['units_count'] ?? 1);
+        $volumeMl = (int)($_POST['volume_ml'] ?? 450);
+        $collectionDate = trim($_POST['collection_date'] ?? date('Y-m-d'));
+        $expiryDate = !empty($_POST['expiry_date']) ? trim($_POST['expiry_date']) : null;
+
+        if (!in_array($bloodType, BLOOD_TYPES)) {
+            redirect('admin_dashboard', 'Invalid blood group specified.', 'error');
+        }
+
+        if ($unitsCount <= 0 || $unitsCount > 100) {
+            redirect('admin_dashboard', 'Please enter a valid unit quantity (1 - 100).', 'error');
+        }
+
+        try {
+            $added = $this->bloodInventory->addBloodUnitsBatch($bloodType, $unitsCount, $volumeMl, $collectionDate, $expiryDate);
+            redirect('admin_dashboard', "Successfully logged {$added} unit(s) of {$bloodType} into inventory.", 'success');
+        } catch (Exception $e) {
+            redirect('admin_dashboard', 'Error adding blood units: ' . $e->getMessage(), 'error');
+        }
+    }
+
+    /**
+     * Update minimum stock thresholds for all blood types
+     */
+    public function updateStockThresholds() {
+        requireRole(ROLE_ADMIN);
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirect('admin_dashboard');
+        }
+
+        $thresholds = $_POST['thresholds'] ?? [];
+        if (!is_array($thresholds) || empty($thresholds)) {
+            redirect('admin_dashboard', 'Invalid threshold values submitted.', 'error');
+        }
+
+        $cleanThresholds = [];
+        foreach ($thresholds as $bType => $val) {
+            if (in_array($bType, BLOOD_TYPES)) {
+                $cleanThresholds[$bType] = max(1, (int)$val);
+            }
+        }
+
+        $success = $this->bloodInventory->updateThresholds($cleanThresholds);
+        if ($success) {
+            redirect('admin_dashboard', 'Minimum stock threshold levels updated successfully.', 'success');
+        } else {
+            redirect('admin_dashboard', 'Failed to update stock thresholds.', 'error');
+        }
+    }
+
+    /**
+     * Publish emergency in-app mobilization appeal for matching eligible donors
+     */
+    public function sendEmergencyAppeal() {
+        requireRole(ROLE_ADMIN);
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirect('admin_dashboard');
+        }
+
+        $bloodType = trim($_POST['blood_type'] ?? '');
+        $urgency = trim($_POST['urgency'] ?? 'Critical Shortage');
+        $message = trim($_POST['appeal_message'] ?? '');
+        $adminId = (int)($_SESSION['user_id'] ?? 1);
+
+        if (!in_array($bloodType, BLOOD_TYPES)) {
+            redirect('admin_dashboard', 'Invalid blood group specified for emergency appeal.', 'error');
+        }
+
+        if (empty($message)) {
+            $message = "URGENT BLOOD APPEAL: Central Blood Bank is experiencing a critical shortage of {$bloodType} reserves. Your donation can save lives today. Please book an appointment or visit a donation centre.";
+        }
+
+        $this->bloodInventory->publishEmergencyAppeal($bloodType, $urgency, $message, $adminId);
+
+        $donors = $this->bloodInventory->getEligibleDonorsForAppeal($bloodType);
+        $count = count($donors);
+
+        redirect('admin_dashboard', "Emergency mobilization banner published! Active for eligible {$bloodType} donors ({$count} registered).", 'success');
+    }
+
+    /**
+     * Resolve / dismiss an active emergency appeal
+     */
+    public function resolveEmergencyAppeal() {
+        requireRole(ROLE_ADMIN);
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirect('admin_dashboard');
+        }
+
+        $appealId = (int)($_POST['appeal_id'] ?? 0);
+        if ($appealId) {
+            $this->bloodInventory->resolveEmergencyAppeal($appealId);
+            redirect('admin_dashboard', 'Emergency appeal resolved and removed from donor dashboards.', 'success');
+        }
+        redirect('admin_dashboard', 'Invalid appeal ID.', 'error');
+    }
+
+    /**
+     * AJAX endpoint: Get eligible donors count and list for a blood group
+     */
+    public function getEligibleDonorsAjax() {
+        requireRole(ROLE_ADMIN);
+        header('Content-Type: application/json');
+
+        $bloodType = trim($_GET['blood_type'] ?? '');
+        if (!in_array($bloodType, BLOOD_TYPES)) {
+            echo json_encode(['success' => false, 'message' => 'Invalid blood type']);
+            exit;
+        }
+
+        $donors = $this->bloodInventory->getEligibleDonorsForAppeal($bloodType);
+        echo json_encode([
+            'success' => true,
+            'blood_type' => $bloodType,
+            'count' => count($donors),
+            'donors' => array_slice($donors, 0, 10)
+        ]);
+        exit;
+    }
 }

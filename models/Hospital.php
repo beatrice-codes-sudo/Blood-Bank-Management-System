@@ -308,9 +308,17 @@ class HospitalModel {
                 status = :status,
                 notes = :notes,
                 updated_at = NOW()
-                WHERE request_id = :request_id AND hospital_id = :hospital_id";
+                WHERE request_id = :request_id 
+                AND hospital_id = :hospital_id
+                AND (
+                    status = 'Partially Fulfilled' 
+                    OR (
+                        (collection_status IS NULL OR collection_status NOT IN ('Ready for Pickup', 'Dispatched', 'Received')) 
+                        AND status IN ('Pending', 'Processing')
+                    )
+                )";
         $stmt = $this->db->prepare($sql);
-        return $stmt->execute([
+        $stmt->execute([
             'request_id'      => $requestId,
             'hospital_id'     => $hospitalId,
             'blood_type'      => $data['blood_type'] ?? null,
@@ -319,6 +327,7 @@ class HospitalModel {
             'status'          => $data['status'] ?? 'Pending',
             'notes'           => $data['notes'] ?? null,
         ]);
+        return $stmt->rowCount() > 0;
     }
 
     /**
@@ -332,7 +341,9 @@ class HospitalModel {
         $sql = "DELETE FROM requests
                 WHERE request_id = :request_id
                 AND hospital_id = :hospital_id
-                AND status IN ('Pending', 'Cancelled')";
+                AND (collection_status IS NULL OR collection_status NOT IN ('Ready for Pickup', 'Dispatched', 'Received'))
+                AND status IN ('Pending', 'Cancelled', 'Rejected')
+                AND (units_fulfilled IS NULL OR units_fulfilled = 0)";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
             'request_id'  => $requestId,
@@ -473,24 +484,46 @@ class HospitalModel {
 
     /**
      * Mark a request as Ready for Pickup and assign 6-digit release PIN (Admin)
+     * Supports full or partial units fulfillment
      *
      * @param int $requestId
      * @param string $releasePin
+     * @param int $unitsFulfilled
+     * @param string $status
      * @return bool
      */
-    public function markReadyForPickup(int $requestId, string $releasePin): bool {
-        $sql = "UPDATE requests SET 
-                status = 'Processing',
-                collection_status = 'Ready for Pickup',
-                release_pin = :pin,
-                pin_generated_at = NOW(),
-                updated_at = NOW()
-                WHERE request_id = :rid";
-        $stmt = $this->db->prepare($sql);
-        return $stmt->execute([
-            'pin' => $releasePin,
-            'rid' => $requestId
-        ]);
+    public function markReadyForPickup(int $requestId, string $releasePin, int $unitsFulfilled = 0, string $status = 'Processing'): bool {
+        if ($unitsFulfilled > 0) {
+            $sql = "UPDATE requests SET 
+                    units_fulfilled = :units,
+                    status = :status,
+                    collection_status = 'Ready for Pickup',
+                    release_pin = :pin,
+                    pin_generated_at = NOW(),
+                    updated_at = NOW()
+                    WHERE request_id = :rid";
+            $stmt = $this->db->prepare($sql);
+            return $stmt->execute([
+                'units'  => $unitsFulfilled,
+                'status' => $status,
+                'pin'    => $releasePin,
+                'rid'    => $requestId
+            ]);
+        } else {
+            $sql = "UPDATE requests SET 
+                    status = :status,
+                    collection_status = 'Ready for Pickup',
+                    release_pin = :pin,
+                    pin_generated_at = NOW(),
+                    updated_at = NOW()
+                    WHERE request_id = :rid";
+            $stmt = $this->db->prepare($sql);
+            return $stmt->execute([
+                'status' => $status,
+                'pin'    => $releasePin,
+                'rid'    => $requestId
+            ]);
+        }
     }
 
     /**
@@ -536,31 +569,66 @@ class HospitalModel {
 
     /**
      * Confirm physical package arrival and cold-chain integrity at destination hospital (Hospital Manager)
+     * Supports acceptance (Fulfilled) or discrepancy rejection (Rejected with audit trail)
      *
      * @param int $requestId
      * @param int $hospitalId
      * @param int|bool $tempVerified
+     * @param string|null $discrepancyReason
+     * @param string|null $discrepancyNotes
      * @return array
      */
-    public function confirmReceipt(int $requestId, int $hospitalId, $tempVerified = 1): array {
-        $sql = "UPDATE requests SET 
-                status = 'Fulfilled',
-                collection_status = 'Received',
-                received_at = NOW(),
-                temp_verified = :temp_verified,
-                updated_at = NOW()
-                WHERE request_id = :rid AND hospital_id = :hid";
-        $stmt = $this->db->prepare($sql);
-        $success = $stmt->execute([
-            'temp_verified' => $tempVerified ? 1 : 0,
-            'rid'           => $requestId,
-            'hid'           => $hospitalId
-        ]);
+    public function confirmReceipt(int $requestId, int $hospitalId, $tempVerified = 1, ?string $discrepancyReason = null, ?string $discrepancyNotes = null): array {
+        $isVerified = $tempVerified ? 1 : 0;
 
-        return [
-            'success' => $success,
-            'message' => $success ? 'Package arrival confirmed! Request marked as Fulfilled.' : 'Failed to confirm receipt.'
-        ];
+        if (!$isVerified) {
+            // Append incident report to notes for QA review
+            $incidentText = "\n[DELIVERY REJECTED / DISCREPANCY: " . date('Y-m-d H:i') . "]";
+            if ($discrepancyReason) {
+                $incidentText .= " Reason: " . $discrepancyReason . ".";
+            }
+            if ($discrepancyNotes) {
+                $incidentText .= " Details: " . $discrepancyNotes;
+            }
+
+            $sql = "UPDATE requests SET 
+                    status = 'Rejected',
+                    collection_status = 'Received',
+                    received_at = NOW(),
+                    temp_verified = 0,
+                    notes = CONCAT(COALESCE(notes, ''), :incident_text),
+                    updated_at = NOW()
+                    WHERE request_id = :rid AND hospital_id = :hid";
+            $stmt = $this->db->prepare($sql);
+            $success = $stmt->execute([
+                'incident_text' => $incidentText,
+                'rid'           => $requestId,
+                'hid'           => $hospitalId
+            ]);
+
+            return [
+                'success' => $success,
+                'message' => $success ? 'Consignment marked as Rejected due to delivery discrepancy. Blood Bank QA notified.' : 'Failed to record receipt.'
+            ];
+        } else {
+            $sql = "UPDATE requests SET 
+                    status = 'Fulfilled',
+                    collection_status = 'Received',
+                    received_at = NOW(),
+                    temp_verified = 1,
+                    updated_at = NOW()
+                    WHERE request_id = :rid AND hospital_id = :hid";
+            $stmt = $this->db->prepare($sql);
+            $success = $stmt->execute([
+                'rid' => $requestId,
+                'hid' => $hospitalId
+            ]);
+
+            return [
+                'success' => $success,
+                'message' => $success ? 'Package arrival confirmed! Request marked as Fulfilled.' : 'Failed to confirm receipt.'
+            ];
+        }
     }
 
     /**

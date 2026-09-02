@@ -89,6 +89,7 @@ ob_start();
                     <th class="px-6 py-3 text-left font-semibold">Volume</th>
                     <th class="px-6 py-3 text-left font-semibold">Center</th>
                     <th class="px-6 py-3 text-left font-semibold">Status</th>
+                    <th class="px-6 py-3 text-right font-semibold">Certificate</th>
                 </tr>
             </thead>
             <tbody id="donations-body" class="divide-y divide-hemo-border">
@@ -115,6 +116,17 @@ ob_start();
                         $dc = $dsc[$don['status']] ?? 'bg-gray-50 text-gray-600';
                         ?>
                         <span class="text-[11px] font-semibold px-2.5 py-1 rounded-full <?php echo $dc; ?>"><?php echo $don['status']; ?></span>
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <?php if ($don['status'] === 'Completed'): ?>
+                            <a href="<?php echo BASE_URL; ?>/index.php?page=donor_certificate&donation_id=<?php echo $don['donation_id']; ?>" 
+                               class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 text-hemo-red hover:bg-hemo-red hover:text-white transition-fast text-xs font-semibold" 
+                               title="Download Certificate">
+                                <i class="fas fa-certificate text-xs"></i> Certificate
+                            </a>
+                        <?php else: ?>
+                            <span class="text-xs text-hemo-gray italic">—</span>
+                        <?php endif; ?>
                     </td>
                 </tr>
                 <?php endforeach; ?>
