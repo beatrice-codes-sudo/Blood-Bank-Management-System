@@ -121,17 +121,29 @@ ob_start();
                         <td class="px-6 py-4">
                             <?php
                             $status = $request['status'] ?? 'Pending';
+                            $colStatus = $request['collection_status'] ?? 'Pending';
                             $statusClass = 'bg-hemo-light-gray text-hemo-gray';
+                            $displayStatus = $status;
                             
-                            switch($status) {
-                                case 'Pending': $statusClass = 'bg-yellow-100 text-yellow-700'; break;
-                                case 'Processing': $statusClass = 'bg-blue-100 text-blue-700'; break;
-                                case 'Fulfilled': $statusClass = 'bg-green-100 text-hemo-success'; break;
-                                case 'Rejected': $statusClass = 'bg-red-100 text-hemo-red'; break;
+                            if ($colStatus === 'Ready for Pickup') {
+                                $statusClass = 'bg-amber-100 text-amber-800 border border-amber-300';
+                                $displayStatus = 'Ready for Pickup';
+                            } elseif ($status === 'Dispatched' || $colStatus === 'Dispatched') {
+                                $statusClass = 'bg-indigo-100 text-indigo-700 border border-indigo-200';
+                                $displayStatus = 'In Transit';
+                            } elseif ($status === 'Pending') {
+                                $statusClass = 'bg-yellow-100 text-yellow-700';
+                            } elseif ($status === 'Processing') {
+                                $statusClass = 'bg-blue-100 text-blue-700';
+                            } elseif ($status === 'Fulfilled' || $colStatus === 'Received') {
+                                $statusClass = 'bg-green-100 text-hemo-success';
+                                $displayStatus = 'Fulfilled (Received)';
+                            } elseif ($status === 'Rejected') {
+                                $statusClass = 'bg-red-100 text-hemo-red';
                             }
                             ?>
                             <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-tight <?php echo $statusClass; ?>">
-                                <?php echo sanitize($status); ?>
+                                <?php echo sanitize($displayStatus); ?>
                             </span>
                         </td>
                         <td class="px-6 py-4 text-xs text-hemo-gray">
@@ -139,11 +151,15 @@ ob_start();
                         </td>
                         <td class="px-6 py-4 text-right">
                             <div class="flex items-center justify-end gap-1.5 whitespace-nowrap">
+                                <button onclick="viewRequestDetailsAdmin(<?php echo $request['request_id']; ?>)" class="p-2 rounded-lg bg-hemo-light-gray text-hemo-charcoal hover:bg-blue-50 hover:text-blue-600 transition-fast" title="View Details">
+                                    <i class="fas fa-eye text-sm"></i>
+                                </button>
+
                                 <?php if (($request['collection_status'] ?? '') === 'Ready for Pickup'): ?>
                                     <button onclick="openVerifyPinModal(<?php echo $request['request_id']; ?>)" class="px-2.5 py-1.5 rounded-lg bg-amber-100 text-amber-800 hover:bg-amber-200 transition-fast font-bold text-xs flex items-center gap-1" title="Verify Runner Release PIN">
                                         <i class="fas fa-key text-xs"></i> Verify PIN
                                     </button>
-                                <?php elseif ($status !== 'Fulfilled' && $status !== 'Rejected' && $status !== 'Cancelled'): ?>
+                                <?php elseif ($status !== 'Fulfilled' && $status !== 'Dispatched' && $status !== 'Rejected' && $status !== 'Cancelled'): ?>
                                     <form action="<?php echo BASE_URL; ?>/index.php?page=admin_mark_ready_pickup" method="POST" class="inline" title="Mark Ready for Pickup (Generates 6-Digit PIN)">
                                         <input type="hidden" name="request_id" value="<?php echo $request['request_id']; ?>">
                                         <input type="hidden" name="hospital_id" value="<?php echo $request['hospital_id'] ?? 0; ?>">
@@ -206,6 +222,32 @@ ob_start();
             <?php endif; ?>
         </div>
         <?php endif; ?>
+    </div>
+</div>
+
+<!-- View Details Modal (Admin) -->
+<div id="viewRequestModalAdmin" class="fixed inset-0 bg-hemo-navy/50 backdrop-blur-sm z-[1001] hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col transform scale-95 transition-transform duration-300 overflow-hidden">
+        <div class="px-6 py-4 border-b border-hemo-border flex items-center justify-between bg-hemo-off-white">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-lg bg-hemo-light-red flex items-center justify-center text-hemo-red">
+                    <i class="fas fa-clipboard-list"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-bold text-hemo-navy">Request Audit & Handover Details</h3>
+                    <p class="text-xs text-hemo-gray">Click & Collect Handover & Tracking</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeModal('viewRequestModalAdmin')" class="text-hemo-gray hover:text-hemo-red transition-fast"><i class="fas fa-times text-lg"></i></button>
+        </div>
+        <div class="p-6 overflow-y-auto flex-1">
+            <div id="viewLoaderAdmin" class="flex justify-center py-12">
+                <i class="fas fa-spinner fa-spin text-3xl text-hemo-red"></i>
+            </div>
+            <div id="viewContentAdmin" class="hidden space-y-4">
+                <!-- Dynamic Content with 4-Step Stepper & PIN Card -->
+            </div>
+        </div>
     </div>
 </div>
 
@@ -303,10 +345,182 @@ async function submitVerifyPin(e) {
         btn.innerHTML = 'Verify & Release Units';
     }
 }
+
+function copyPinToClipboard(pin, btnId = 'btnCopyPinAdminReq') {
+    navigator.clipboard.writeText(pin).then(() => {
+        const btn = document.getElementById(btnId);
+        if (btn) {
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+            btn.classList.add('bg-green-600', 'text-white');
+            setTimeout(() => {
+                btn.innerHTML = originalHtml;
+                btn.classList.remove('bg-green-600', 'text-white');
+            }, 2000);
+        }
+    });
+}
+
+const urgencyLabels = {'Normal':['Low','text-blue-700'],'Urgent':['High','text-amber-700'],'Emergency':['Critical','text-hemo-warning']};
+const statusLabels = {'Pending':'bg-amber-100 text-amber-700','Processing':'bg-blue-100 text-blue-700','Dispatched':'bg-indigo-100 text-indigo-700','Fulfilled':'bg-green-100 text-hemo-success','Partially Fulfilled':'bg-indigo-100 text-indigo-700','Rejected':'bg-red-100 text-hemo-warning','Cancelled':'bg-gray-100 text-gray-600'};
+
+async function viewRequestDetailsAdmin(id) {
+    openModal('viewRequestModalAdmin');
+    document.getElementById('viewLoaderAdmin').classList.remove('hidden');
+    document.getElementById('viewContentAdmin').classList.add('hidden');
+    
+    try {
+        const res = await fetch(`<?php echo BASE_URL; ?>/index.php?page=admin_get_request_json&id=${id}`);
+        const data = await res.json();
+        
+        if (data.success && data.data) {
+            const r = data.data;
+            const urg = urgencyLabels[r.urgency] || ['Medium','text-gray-700'];
+            const sc = statusLabels[r.status] || 'bg-gray-100 text-gray-600';
+            
+            // Stepper Step Number (1: Submitted, 2: Ready, 3: Dispatched, 4: Received)
+            let step = 1;
+            if (r.status === 'Fulfilled' || r.collection_status === 'Received') {
+                step = 4;
+            } else if (r.status === 'Dispatched' || r.collection_status === 'Dispatched') {
+                step = 3;
+            } else if (r.collection_status === 'Ready for Pickup' || r.release_pin) {
+                step = 2;
+            }
+
+            const stepperHtml = `
+                <div class="py-3 px-2 bg-hemo-off-white rounded-xl border border-hemo-border mb-4">
+                    <div class="grid grid-cols-4 relative">
+                        <div class="absolute top-1/2 left-1/8 right-1/8 h-1 bg-gray-200 -translate-y-1/2 z-0">
+                            <div class="h-full bg-hemo-red transition-all duration-500" style="width: ${((step - 1) / 3) * 100}%"></div>
+                        </div>
+
+                        <div class="relative z-10 flex flex-col items-center text-center">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${step >= 1 ? 'bg-hemo-red text-white shadow-md' : 'bg-gray-200 text-gray-500'}">
+                                <i class="fas fa-check"></i>
+                            </div>
+                            <span class="text-[11px] font-bold mt-1 text-hemo-navy">1. Submitted</span>
+                            <span class="text-[9px] text-hemo-gray">${r.created_at ? new Date(r.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : ''}</span>
+                        </div>
+
+                        <div class="relative z-10 flex flex-col items-center text-center">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${step >= 2 ? 'bg-hemo-red text-white shadow-md' : 'bg-gray-200 text-gray-500'}">
+                                ${step >= 2 ? '<i class="fas fa-box-archive"></i>' : '2'}
+                            </div>
+                            <span class="text-[11px] font-bold mt-1 ${step >= 2 ? 'text-hemo-navy' : 'text-gray-400'}">2. Ready</span>
+                            <span class="text-[9px] text-hemo-gray">${r.release_pin ? 'PIN Generated' : 'Pending'}</span>
+                        </div>
+
+                        <div class="relative z-10 flex flex-col items-center text-center">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${step >= 3 ? 'bg-hemo-red text-white shadow-md' : 'bg-gray-200 text-gray-500'}">
+                                ${step >= 3 ? '<i class="fas fa-truck-fast"></i>' : '3'}
+                            </div>
+                            <span class="text-[11px] font-bold mt-1 ${step >= 3 ? 'text-hemo-navy' : 'text-gray-400'}">3. Dispatched</span>
+                            <span class="text-[9px] text-hemo-gray">${r.dispatched_at ? 'In Transit' : 'Pending'}</span>
+                        </div>
+
+                        <div class="relative z-10 flex flex-col items-center text-center">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${step >= 4 ? 'bg-hemo-success text-white shadow-md' : 'bg-gray-200 text-gray-500'}">
+                                ${step >= 4 ? '<i class="fas fa-check-double"></i>' : '4'}
+                            </div>
+                            <span class="text-[11px] font-bold mt-1 ${step >= 4 ? 'text-hemo-success' : 'text-gray-400'}">4. Delivered</span>
+                            <span class="text-[9px] text-hemo-gray">${r.received_at ? 'Received' : 'Pending'}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            let pinCardHtml = '';
+            if (r.release_pin) {
+                pinCardHtml = `
+                    <div class="p-4 rounded-xl bg-amber-50 border border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <div class="flex items-center gap-1.5 text-xs font-bold text-amber-900 uppercase">
+                                <i class="fas fa-key text-amber-600"></i> Click & Collect Release PIN
+                            </div>
+                            <p class="text-[11px] text-amber-800">Runner must present this code at counter.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="bg-white px-3 py-1.5 rounded-lg border border-amber-300 font-mono font-bold text-xl tracking-widest text-amber-950">
+                                ${r.release_pin}
+                            </div>
+                            <button type="button" id="btnCopyPinAdminReq" onclick="copyPinToClipboard('${r.release_pin}', 'btnCopyPinAdminReq')"
+                                    class="px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-sm transition-fast flex items-center gap-1">
+                                <i class="fas fa-copy"></i> Copy
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            let driverInfoHtml = '';
+            if (r.collected_by_name || r.dispatched_at) {
+                driverInfoHtml = `
+                    <div class="p-3.5 rounded-xl bg-indigo-50 border border-indigo-200 text-xs">
+                        <p class="font-bold text-indigo-950 mb-1.5"><i class="fas fa-id-badge text-indigo-600 mr-1"></i> Courier Handover Audit</p>
+                        <div class="grid grid-cols-2 gap-2 text-hemo-charcoal">
+                            <div><span class="text-hemo-gray block">Driver:</span> <strong>${r.collected_by_name || 'N/A'}</strong></div>
+                            <div><span class="text-hemo-gray block">Phone / Reg:</span> <strong>${r.collected_by_phone || 'N/A'}</strong></div>
+                            <div><span class="text-hemo-gray block">Dispatched:</span> <strong>${r.dispatched_at ? new Date(r.dispatched_at).toLocaleString() : 'N/A'}</strong></div>
+                            <div><span class="text-hemo-gray block">Delivery Received:</span> <strong>${r.received_at ? new Date(r.received_at).toLocaleString() : 'In Transit'}</strong></div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            let actionButtonsHtml = '';
+            if (r.collection_status === 'Ready for Pickup') {
+                actionButtonsHtml = `
+                    <div class="pt-2">
+                        <button onclick="closeModal('viewRequestModalAdmin'); openVerifyPinModal(${r.request_id})"
+                                class="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-md transition-fast flex items-center justify-center gap-2">
+                            <i class="fas fa-key"></i> Verify Runner Release PIN & Dispatch Units
+                        </button>
+                    </div>
+                `;
+            }
+
+            document.getElementById('viewContentAdmin').innerHTML = `
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between pb-3 border-b border-hemo-border">
+                        <div class="flex items-center gap-3">
+                            <span class="text-sm font-mono font-bold text-hemo-red bg-hemo-light-red px-2.5 py-1 rounded">REQ-${String(r.request_id).padStart(4,'0')}</span>
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${sc}">${r.status}</span>
+                        </div>
+                        <span class="text-xs ${urg[1]} font-semibold">${urg[0]} Urgency</span>
+                    </div>
+
+                    ${stepperHtml}
+                    ${pinCardHtml}
+                    ${driverInfoHtml}
+                    ${actionButtonsHtml}
+
+                    <div class="grid grid-cols-2 gap-4 p-4 rounded-xl bg-hemo-off-white border border-hemo-border text-xs">
+                        <div><span class="text-hemo-gray block">Blood Type</span><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold bg-hemo-red text-white"><i class="fas fa-droplet text-[9px]"></i> ${r.blood_type || 'N/A'}</span></div>
+                        <div><span class="text-hemo-gray block">Units</span><span class="text-sm font-bold text-hemo-navy">${r.units_fulfilled || 0} / ${r.units_requested} units</span></div>
+                        <div><span class="text-hemo-gray block">Hospital</span><span class="font-semibold text-hemo-navy">${r.hospital_name || 'N/A'}</span></div>
+                        <div><span class="text-hemo-gray block">Requested On</span><span class="font-semibold text-hemo-navy">${r.created_at ? new Date(r.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : 'N/A'}</span></div>
+                    </div>
+
+                    ${r.requester_first ? `<div class="bg-hemo-light-gray rounded-xl p-3 text-xs">
+                        <p class="text-hemo-gray font-bold uppercase mb-1">Requested By</p>
+                        <p class="font-semibold text-hemo-navy">${r.requester_first} ${r.requester_last || ''}</p>
+                        <p class="text-hemo-charcoal mt-0.5"><i class="fas fa-envelope text-hemo-gray mr-1"></i>${r.requester_email || 'N/A'} &nbsp;|&nbsp; <i class="fas fa-phone text-hemo-gray mr-1"></i>${r.requester_phone || 'N/A'}</p>
+                    </div>` : ''}
+                </div>
+            `;
+        }
+    } catch(e) {
+        document.getElementById('viewContentAdmin').innerHTML = '<p class="text-center text-hemo-warning py-4">Failed to load request.</p>';
+    }
+    document.getElementById('viewLoaderAdmin').classList.add('hidden');
+    document.getElementById('viewContentAdmin').classList.remove('hidden');
+}
 </script>
 
 <?php
 $content = ob_get_clean();
 require_once __DIR__ . '/../layouts/dashboard_layout.php';
 ?>
+
 

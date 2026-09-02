@@ -35,9 +35,12 @@ date_default_timezone_set('Africa/Nairobi');
 
 /**
  * Helper to safely parse .env file without INI syntax errors
+ *
+ * @param string $filePath
+ * @return array
  */
 if (!function_exists('loadEnvFile')) {
-    function loadEnvFile($filePath) {
+    function loadEnvFile(string $filePath): array {
         if (!file_exists($filePath)) return [];
         $lines = file($filePath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
         $data = [];

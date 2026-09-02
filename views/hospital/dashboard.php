@@ -207,9 +207,11 @@ ob_start();
                         <td class="px-6 py-4">
                             <?php 
                             $statusColors = [
-                                'Pending' => 'bg-amber-100 text-amber-700',
-                                'Fulfilled' => 'bg-green-100 text-hemo-success',
-                                'Rejected' => 'bg-red-100 text-hemo-warning',
+                                'Pending'    => 'bg-amber-100 text-amber-700',
+                                'Processing' => 'bg-blue-100 text-blue-700',
+                                'Dispatched' => 'bg-indigo-100 text-indigo-700 border border-indigo-200',
+                                'Fulfilled'  => 'bg-green-100 text-hemo-success',
+                                'Rejected'   => 'bg-red-100 text-hemo-warning',
                             ];
                             $sc = $statusColors[$req['status']] ?? 'bg-gray-100 text-hemo-gray';
                             $dispStatus = $req['status'];
@@ -217,6 +219,12 @@ ob_start();
                             if (($req['collection_status'] ?? '') === 'Ready for Pickup') {
                                 $sc = 'bg-amber-100 text-amber-800 border border-amber-300';
                                 $dispStatus = 'Ready for Pickup';
+                            } elseif ($req['status'] === 'Dispatched' || ($req['collection_status'] ?? '') === 'Dispatched') {
+                                $sc = 'bg-indigo-100 text-indigo-700 border border-indigo-200';
+                                $dispStatus = 'In Transit';
+                            } elseif ($req['status'] === 'Fulfilled' || ($req['collection_status'] ?? '') === 'Received') {
+                                $sc = 'bg-green-100 text-hemo-success';
+                                $dispStatus = 'Fulfilled (Received)';
                             }
                             ?>
                             <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold <?php echo $sc; ?>">

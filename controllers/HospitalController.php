@@ -5,8 +5,11 @@
  * Post-consolidation: blood_type is a string ENUM, not an FK ID
  */
 class HospitalController {
-    private $hospitalModel;
-    private $bloodInventory;
+    /** @var HospitalModel */
+    private HospitalModel $hospitalModel;
+
+    /** @var BloodInventory */
+    private BloodInventory $bloodInventory;
 
     public function __construct() {
         $this->hospitalModel = new HospitalModel();
@@ -15,9 +18,11 @@ class HospitalController {
 
     /**
      * Get the hospital record for the current logged-in user
+     *
+     * @return array|null
      */
-    private function getMyHospital() {
-        return $this->hospitalModel->findByUserId($_SESSION['user_id']);
+    private function getMyHospital(): ?array {
+        return $this->hospitalModel->findByUserId((int)$_SESSION['user_id']);
     }
 
     /**
@@ -342,6 +347,54 @@ class HospitalController {
         $errorMsg = $result['message'] ?? 'Subscription verification failed. Please contact support.';
         echo json_encode(['success' => false, 'message' => $errorMsg]);
         exit;
+    }
+
+    /**
+     * Get request details JSON for View Modal with 4-step progress and PIN
+     */
+    public function getRequest() {
+        requireRole(ROLE_HOSPITAL);
+        header('Content-Type: application/json');
+
+        $hospital = $this->getMyHospital();
+        if (!$hospital) {
+            echo json_encode(['success' => false, 'message' => 'Hospital profile not found.']);
+            exit;
+        }
+
+        $requestId = (int)($_GET['id'] ?? 0);
+        $req = $this->hospitalModel->getRequestDetailsWithAudit($requestId, $hospital['hospital_id']);
+
+        if (!$req) {
+            echo json_encode(['success' => false, 'message' => 'Request not found.']);
+            exit;
+        }
+
+        echo json_encode(['success' => true, 'data' => $req]);
+        exit;
+    }
+
+    /**
+     * Confirm receipt of blood package and cold-chain integrity at hospital
+     */
+    public function confirmReceipt() {
+        requireRole(ROLE_HOSPITAL);
+
+        $hospital = $this->getMyHospital();
+        if (!$hospital) {
+            redirect('hospital_requests', 'Hospital profile not found.', 'error');
+        }
+
+        $requestId = (int)($_POST['request_id'] ?? 0);
+        $tempVerified = isset($_POST['temp_verified']) ? 1 : 0;
+
+        $result = $this->hospitalModel->confirmReceipt($requestId, $hospital['hospital_id'], $tempVerified);
+
+        if ($result['success']) {
+            redirect('hospital_requests', 'Package arrival confirmed! Request marked as Fulfilled.', 'success');
+        } else {
+            redirect('hospital_requests', $result['message'] ?? 'Failed to confirm receipt.', 'error');
+        }
     }
 }
 

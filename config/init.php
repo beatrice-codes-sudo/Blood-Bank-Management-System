@@ -30,21 +30,21 @@ require_once __DIR__ . '/../controllers/DonorController.php';
 /**
  * Helper: check if user is logged in
  */
-function isLoggedIn() {
+function isLoggedIn(): bool {
     return isset($_SESSION['user_id']);
 }
 
 /**
  * Helper: get current user role
  */
-function getUserRole() {
+function getUserRole(): ?string {
     return $_SESSION['role'] ?? null;
 }
 
 /**
  * Helper: require authentication
  */
-function requireAuth() {
+function requireAuth(): void {
     if (!isLoggedIn()) {
         header('Location: ' . BASE_URL . '/index.php?page=login');
         exit;
@@ -54,7 +54,7 @@ function requireAuth() {
 /**
  * Helper: require specific role
  */
-function requireRole($roleId) {
+function requireRole(string $roleId): void {
     requireAuth();
     if (getUserRole() != $roleId) {
         header('Location: ' . BASE_URL . '/index.php?page=unauthorized');
@@ -65,7 +65,7 @@ function requireRole($roleId) {
 /**
  * Helper: redirect with flash message
  */
-function redirect($page, $message = '', $type = 'success') {
+function redirect(string $page, string $message = '', string $type = 'success'): void {
     if ($message) {
         $_SESSION['flash_message'] = $message;
         $_SESSION['flash_type'] = $type;
@@ -77,7 +77,7 @@ function redirect($page, $message = '', $type = 'success') {
 /**
  * Helper: get and clear flash message
  */
-function getFlashMessage() {
+function getFlashMessage(): ?array {
     if (isset($_SESSION['flash_message'])) {
         $msg = [
             'message' => $_SESSION['flash_message'],
@@ -92,11 +92,11 @@ function getFlashMessage() {
 /**
  * Helper: sanitize input
  */
-function sanitize($input) {
-    return htmlspecialchars(trim($input), ENT_QUOTES, 'UTF-8');
+function sanitize(?string $input): string {
+    return htmlspecialchars(trim($input ?? ''), ENT_QUOTES, 'UTF-8');
 }
 
-function getBloodTypeColorClass($bloodType) {
+function getBloodTypeColorClass(string $bloodType): string {
     $colors = [
         'A+' => 'bg-green-100 text-green-800',
         'A-' => 'bg-green-200 text-green-900',

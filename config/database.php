@@ -5,8 +5,11 @@
  * Reads credentials from .env file
  */
 class Database {
-    private static $instance = null;
-    private $pdo;
+    /** @var Database|null */
+    private static ?Database $instance = null;
+
+    /** @var PDO|null */
+    private ?PDO $pdo = null;
 
     private function __construct() {
         // Load .env file
@@ -36,14 +39,14 @@ class Database {
         }
     }
 
-    public static function getInstance() {
+    public static function getInstance(): Database {
         if (self::$instance === null) {
             self::$instance = new self();
         }
         return self::$instance;
     }
 
-    public function getConnection() {
+    public function getConnection(): PDO {
         return $this->pdo;
     }
 

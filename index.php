@@ -145,6 +145,11 @@ switch ($page) {
         $admin->verifyReleasePin();
         break;
 
+    case 'admin_get_request_json':
+        $admin = new AdminController();
+        $admin->getRequestDetailsJson();
+        break;
+
     // === Admin Requests Management ===
     case 'admin_requests_donor':
         $admin = new AdminController();
@@ -197,6 +202,16 @@ switch ($page) {
     case 'hospital_request_view':
         $hospital = new HospitalController();
         $hospital->viewRequest();
+        break;
+
+    case 'hospital_get_request':
+        $hospital = new HospitalController();
+        $hospital->getRequest();
+        break;
+
+    case 'hospital_confirm_receipt':
+        $hospital = new HospitalController();
+        $hospital->confirmReceipt();
         break;
 
     case 'hospital_request_add':

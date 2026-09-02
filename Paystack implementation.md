@@ -33,7 +33,7 @@ sequenceDiagram
 
 ---
 
-## 2. Click & Collect Handover Sequence (With Digital Release PIN)
+## 2. Click & Collect Handover Sequence (With Digital Release PIN & 2-Step Delivery Verification)
 
 ```mermaid
 sequenceDiagram
@@ -43,18 +43,21 @@ sequenceDiagram
     participant Admin as Central Blood Bank Staff
     actor Driver as Hospital Ambulance / Runner
 
-    Hospital->>HemoLink: Submits Blood Request (Active SaaS Subscription)
-    Admin->>HemoLink: Cross-matches units & clicks "Ready for Collection"
+    Hospital->>HemoLink: Submits Blood Request (Status: Pending)
+    Admin->>HemoLink: Cross-matches units & clicks "Ready for Pickup"
     HemoLink->>HemoLink: Generates Secure 6-Digit PIN (e.g. 739-104)
-    HemoLink-->>Hospital: Displays "Ready for Pickup" + Dynamic Release PIN
+    Note over HemoLink: PIN is visible in View Details Modal for BOTH Admin & Hospital Manager with 1-Click Copy
     Hospital->>Driver: Dispatches driver with cold-box & Release PIN
     Driver->>Admin: Arrives at counter, presents PIN: 739-104 & ID
     Admin->>HemoLink: Inputs PIN + Runner Name/Phone in Admin Verification Modal
-    HemoLink->>HemoLink: Validates PIN against Request Record
-    HemoLink-->>Admin: Verification Success ✅
-    Admin->>Driver: Releases Blood Units in Temperature Container
-    HemoLink-->>Hospital: Instant Notification: "Collected by Driver Mwangi at 14:32"
+    HemoLink->>HemoLink: Validates PIN match against Request Record
+    HemoLink-->>Admin: PIN Verified ✅ (Status: Dispatched / In Transit)
+    Admin->>Driver: Hands over temperature-controlled transport container
+    Driver->>Hospital: Arrives at hospital transfusion laboratory
+    Hospital->>HemoLink: Inspects cold-box & clicks "Confirm Package Received"
+    HemoLink->>HemoLink: Marks Status: "Fulfilled / Received" (Cold-chain seal verified ✅)
 ```
+
 
 ---
 

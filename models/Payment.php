@@ -4,7 +4,8 @@
  * Handles Paystack API verification and hospital SaaS subscription lifecycle
  */
 class Payment {
-    private $db;
+    /** @var PDO */
+    private PDO $db;
 
     public function __construct() {
         $this->db = Database::getInstance()->getConnection();
@@ -16,7 +17,7 @@ class Payment {
      * @param string $reference
      * @return array
      */
-    public function verifyPaystackReference($reference) {
+    public function verifyPaystackReference(string $reference): array {
         $secretKey = PAYSTACK_SECRET_KEY;
         $url = "https://api.paystack.co/transaction/verify/" . rawurlencode($reference);
 
@@ -52,7 +53,7 @@ class Payment {
      * @param array $paystackData
      * @return bool
      */
-    public function activateHospitalSubscription($hospitalId, $reference, $planName, $interval, $amount, $channel, $paystackData) {
+    public function activateHospitalSubscription(int $hospitalId, string $reference, string $planName, string $interval, float $amount, string $channel, array $paystackData): bool {
         $this->db->beginTransaction();
         try {
             // 1. Insert transaction ledger record
@@ -108,7 +109,7 @@ class Payment {
      * @param int $hospitalId
      * @return array
      */
-    public function getPaymentsByHospital($hospitalId) {
+    public function getPaymentsByHospital(int $hospitalId): array {
         $stmt = $this->db->prepare("SELECT * FROM payments WHERE hospital_id = :hid ORDER BY created_at DESC");
         $stmt->execute(['hid' => $hospitalId]);
         return $stmt->fetchAll();
@@ -121,7 +122,7 @@ class Payment {
      * @param int $offset
      * @return array
      */
-    public function getAllPayments($limit = 50, $offset = 0) {
+    public function getAllPayments(int $limit = 50, int $offset = 0): array {
         $sql = "SELECT p.*, h.hospital_name, h.hospital_code 
                 FROM payments p
                 JOIN hospitals h ON p.hospital_id = h.hospital_id

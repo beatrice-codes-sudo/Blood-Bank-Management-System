@@ -148,12 +148,17 @@ ob_start();
                                 $statusClass = 'bg-amber-100 text-amber-800 border border-amber-300';
                                 $statusDot = 'bg-amber-600 animate-pulse';
                                 $displayStatus = 'Ready for Pickup';
+                            } elseif ($req['status'] === 'Dispatched' || ($req['collection_status'] ?? '') === 'Dispatched') {
+                                $statusClass = 'bg-indigo-100 text-indigo-700 border border-indigo-200';
+                                $statusDot = 'bg-indigo-600 animate-pulse';
+                                $displayStatus = 'In Transit';
                             } elseif ($req['status'] === 'Pending' || $req['status'] === 'Processing') {
                                 $statusClass = 'bg-amber-100 text-hemo-amber';
                                 $statusDot = 'bg-hemo-amber';
-                            } elseif ($req['status'] === 'Fulfilled') {
+                            } elseif ($req['status'] === 'Fulfilled' || ($req['collection_status'] ?? '') === 'Received') {
                                 $statusClass = 'bg-green-100 text-hemo-success';
                                 $statusDot = 'bg-hemo-success';
+                                $displayStatus = 'Fulfilled (Received)';
                             } elseif ($req['status'] === 'Partially Fulfilled') {
                                 $statusClass = 'bg-blue-100 text-blue-500';
                                 $statusDot = 'bg-blue-500';
@@ -174,6 +179,13 @@ ob_start();
                             <button onclick="viewRequest(<?php echo $req['request_id']; ?>)" class="p-2 rounded-lg bg-hemo-light-gray text-hemo-charcoal hover:bg-blue-50 hover:text-blue-600 transition-fast" title="View Details">
                                 <i class="fas fa-eye text-sm"></i>
                             </button>
+
+                            <?php if ($req['status'] === 'Dispatched' || ($req['collection_status'] ?? '') === 'Dispatched'): ?>
+                                <button onclick="openConfirmReceiptModal(<?php echo $req['request_id']; ?>)" class="p-2 rounded-lg bg-green-100 text-hemo-success hover:bg-green-200 transition-fast font-bold text-xs" title="Confirm Package Arrival">
+                                    <i class="fas fa-check-double text-sm mr-1"></i> Confirm Received
+                                </button>
+                            <?php endif; ?>
+
                             <?php if (in_array($req['status'], ['Pending', 'Processing', 'Partially Fulfilled'])): ?>
                             <button onclick="openEditModal(<?php echo htmlspecialchars(json_encode([
                                 'id' => $req['request_id'],
@@ -306,19 +318,66 @@ ob_start();
 
 <!-- View Request Modal -->
 <div id="viewRequestModal" class="fixed inset-0 bg-hemo-navy/50 backdrop-blur-sm z-[1001] hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col transform scale-95 transition-transform duration-300">
-        <div class="px-6 py-4 border-b border-hemo-border flex items-center justify-between bg-hemo-off-white rounded-t-xl">
-            <h3 class="text-lg font-semibold text-hemo-navy">Request Details</h3>
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col transform scale-95 transition-transform duration-300 overflow-hidden">
+        <div class="px-6 py-4 border-b border-hemo-border flex items-center justify-between bg-hemo-off-white">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-lg bg-hemo-light-red flex items-center justify-center text-hemo-red">
+                    <i class="fas fa-file-medical"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-bold text-hemo-navy">Blood Requisition Details</h3>
+                    <p class="text-xs text-hemo-gray">Click & Collect Handover & Custody Tracking</p>
+                </div>
+            </div>
             <button type="button" onclick="closeModal('viewRequestModal')" class="text-hemo-gray hover:text-hemo-red transition-fast"><i class="fas fa-times text-lg"></i></button>
         </div>
-        <div class="p-6">
-            <div id="viewLoader" class="flex justify-center py-8">
+        <div class="p-6 overflow-y-auto flex-1">
+            <div id="viewLoader" class="flex justify-center py-12">
                 <i class="fas fa-spinner fa-spin text-3xl text-hemo-red"></i>
             </div>
-            <div id="viewContent" class="hidden">
-                <!-- Content populated via JS -->
+            <div id="viewContent" class="hidden space-y-6">
+                <!-- Dynamic Content with 4-Step Stepper & PIN Card -->
             </div>
         </div>
+    </div>
+</div>
+
+<!-- Confirm Receipt Modal -->
+<div id="confirmReceiptModal" class="fixed inset-0 bg-hemo-navy/50 backdrop-blur-sm z-[1001] hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col transform scale-95 transition-transform duration-300 overflow-hidden">
+        <div class="px-6 py-4 border-b border-hemo-border bg-green-50 flex items-center justify-between">
+            <h3 class="text-base font-bold text-green-900 flex items-center gap-2">
+                <i class="fas fa-box-check text-hemo-success"></i> Confirm Package Arrival
+            </h3>
+            <button type="button" onclick="closeModal('confirmReceiptModal')" class="text-green-800 hover:text-hemo-red"><i class="fas fa-times"></i></button>
+        </div>
+        <form action="<?php echo BASE_URL; ?>/index.php?page=hospital_confirm_receipt" method="POST" class="p-6">
+            <input type="hidden" name="request_id" id="receipt_request_id">
+            
+            <div class="text-center mb-6">
+                <div class="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3 text-hemo-success text-2xl">
+                    <i class="fas fa-truck-ramp-box"></i>
+                </div>
+                <h4 class="text-lg font-bold text-hemo-navy">Acknowledge Blood Delivery</h4>
+                <p class="text-xs text-hemo-charcoal mt-1">Confirm that the driver has delivered the blood units to the hospital blood transfusion lab.</p>
+            </div>
+
+            <div class="bg-hemo-light-gray p-4 rounded-xl mb-6 border border-hemo-border">
+                <label class="flex items-start gap-3 cursor-pointer">
+                    <input type="checkbox" name="temp_verified" value="1" checked required class="mt-1 w-4 h-4 text-hemo-success rounded border-gray-300 focus:ring-hemo-success">
+                    <span class="text-xs text-hemo-charcoal leading-relaxed">
+                        <strong>Cold-Chain Integrity Check:</strong> I confirm the temperature-controlled cool box arrived intact (2°C - 6°C) and the seal was uncompromised.
+                    </span>
+                </label>
+            </div>
+
+            <div class="flex gap-3">
+                <button type="button" onclick="closeModal('confirmReceiptModal')" class="flex-1 py-2.5 rounded-lg bg-hemo-light-gray text-hemo-charcoal font-semibold text-sm hover:bg-gray-200 transition-fast">Cancel</button>
+                <button type="submit" class="flex-1 py-2.5 rounded-lg bg-hemo-success hover:bg-green-700 text-white font-bold text-sm shadow-md transition-fast">
+                    Confirm & Complete
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -371,7 +430,7 @@ ob_start();
     </div>
 </div>
 
-<!-- JavaScript for Modals & Filtering -->
+<!-- JavaScript for Modals, Copy PIN & 4-Step Stepper -->
 <script>
     // Search and Filter Logic
     document.addEventListener('DOMContentLoaded', () => {
@@ -417,7 +476,6 @@ ob_start();
     function openModal(id) {
         const modal = document.getElementById(id);
         modal.classList.remove('hidden');
-        // trigger reflow
         void modal.offsetWidth;
         modal.classList.remove('opacity-0');
         modal.querySelector('div').classList.remove('scale-95');
@@ -430,6 +488,26 @@ ob_start();
         setTimeout(() => {
             modal.classList.add('hidden');
         }, 300);
+    }
+
+    function openConfirmReceiptModal(id) {
+        document.getElementById('receipt_request_id').value = id;
+        openModal('confirmReceiptModal');
+    }
+
+    function copyPinToClipboard(pin, btnId = 'btnCopyPin') {
+        navigator.clipboard.writeText(pin).then(() => {
+            const btn = document.getElementById(btnId);
+            if (btn) {
+                const originalHtml = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                btn.classList.add('bg-green-600', 'text-white');
+                setTimeout(() => {
+                    btn.innerHTML = originalHtml;
+                    btn.classList.remove('bg-green-600', 'text-white');
+                }, 2000);
+            }
+        });
     }
 
     // Edit Modal Populator
@@ -448,40 +526,168 @@ ob_start();
         openModal('deleteRequestModal');
     }
 
-    // AJAX for View Request Details
+    // AJAX for View Request Details with 4-Step Stepper & PIN
     async function viewRequest(id) {
         openModal('viewRequestModal');
         document.getElementById('viewLoader').classList.remove('hidden');
         document.getElementById('viewContent').classList.add('hidden');
 
         try {
-            const res = await fetch(`<?php echo BASE_URL; ?>/index.php?page=hospital_request_view&request_id=${id}`);
+            const res = await fetch(`<?php echo BASE_URL; ?>/index.php?page=hospital_get_request&id=${id}`);
             const data = await res.json();
             
-            if (data.request) {
-                const r = data.request;
-                const bType = r.blood_type ? r.blood_type : 'Unknown';
+            if (data.success && data.data) {
+                const r = data.data;
+                const bType = r.blood_type || 'Unknown';
                 
+                // Determine Stepper Active States (1: Submitted, 2: Ready, 3: Dispatched, 4: Received)
+                let step = 1;
+                if (r.status === 'Fulfilled' || r.collection_status === 'Received') {
+                    step = 4;
+                } else if (r.status === 'Dispatched' || r.collection_status === 'Dispatched') {
+                    step = 3;
+                } else if (r.collection_status === 'Ready for Pickup' || r.release_pin) {
+                    step = 2;
+                }
+
+                // Render 4-Step Stepper HTML
+                const stepperHtml = `
+                    <div class="py-3 px-2 bg-hemo-off-white rounded-xl border border-hemo-border mb-6">
+                        <div class="grid grid-cols-4 relative">
+                            <!-- Connecting Line -->
+                            <div class="absolute top-1/2 left-1/8 right-1/8 h-1 bg-gray-200 -translate-y-1/2 z-0">
+                                <div class="h-full bg-hemo-red transition-all duration-500" style="width: ${((step - 1) / 3) * 100}%"></div>
+                            </div>
+
+                            <!-- Step 1: Submitted -->
+                            <div class="relative z-10 flex flex-col items-center text-center">
+                                <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${step >= 1 ? 'bg-hemo-red text-white shadow-md' : 'bg-gray-200 text-gray-500'}">
+                                    <i class="fas fa-check"></i>
+                                </div>
+                                <span class="text-[11px] font-bold mt-1 text-hemo-navy">1. Submitted</span>
+                                <span class="text-[9px] text-hemo-gray">${r.created_at ? new Date(r.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : ''}</span>
+                            </div>
+
+                            <!-- Step 2: Ready for Pickup -->
+                            <div class="relative z-10 flex flex-col items-center text-center">
+                                <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${step >= 2 ? 'bg-hemo-red text-white shadow-md' : 'bg-gray-200 text-gray-500'}">
+                                    ${step >= 2 ? '<i class="fas fa-box-archive"></i>' : '2'}
+                                </div>
+                                <span class="text-[11px] font-bold mt-1 ${step >= 2 ? 'text-hemo-navy' : 'text-gray-400'}">2. Ready</span>
+                                <span class="text-[9px] text-hemo-gray">${r.release_pin ? 'PIN Generated' : 'Pending'}</span>
+                            </div>
+
+                            <!-- Step 3: Dispatched -->
+                            <div class="relative z-10 flex flex-col items-center text-center">
+                                <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${step >= 3 ? 'bg-hemo-red text-white shadow-md' : 'bg-gray-200 text-gray-500'}">
+                                    ${step >= 3 ? '<i class="fas fa-truck-fast"></i>' : '3'}
+                                </div>
+                                <span class="text-[11px] font-bold mt-1 ${step >= 3 ? 'text-hemo-navy' : 'text-gray-400'}">3. In Transit</span>
+                                <span class="text-[9px] text-hemo-gray">${r.dispatched_at ? 'Driver Dispatched' : 'Pending Handover'}</span>
+                            </div>
+
+                            <!-- Step 4: Received -->
+                            <div class="relative z-10 flex flex-col items-center text-center">
+                                <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${step >= 4 ? 'bg-hemo-success text-white shadow-md' : 'bg-gray-200 text-gray-500'}">
+                                    ${step >= 4 ? '<i class="fas fa-check-double"></i>' : '4'}
+                                </div>
+                                <span class="text-[11px] font-bold mt-1 ${step >= 4 ? 'text-hemo-success' : 'text-gray-400'}">4. Received</span>
+                                <span class="text-[9px] text-hemo-gray">${r.received_at ? 'Verified' : 'Awaiting Delivery'}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                // Release PIN Card (Shown when PIN is generated)
+                let pinCardHtml = '';
+                if (r.release_pin) {
+                    pinCardHtml = `
+                        <div class="p-5 rounded-2xl bg-amber-50 border-2 border-amber-300 shadow-sm relative overflow-hidden">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div>
+                                    <div class="flex items-center gap-1.5 text-xs font-bold text-amber-900 uppercase tracking-wider mb-1">
+                                        <i class="fas fa-key text-amber-600"></i> Click & Collect Handover Token
+                                    </div>
+                                    <p class="text-xs text-amber-800">
+                                        Share this 6-digit PIN with your ambulance driver / courier to authenticate handover at Central Blood Bank.
+                                    </p>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <div class="bg-white px-4 py-2.5 rounded-xl border border-amber-300 shadow-sm">
+                                        <span class="font-mono font-black text-2xl tracking-widest text-amber-950">${r.release_pin}</span>
+                                    </div>
+                                    <button type="button" id="btnCopyPinModal" onclick="copyPinToClipboard('${r.release_pin}', 'btnCopyPinModal')"
+                                            class="px-3.5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-sm transition-fast flex items-center gap-1.5" title="Copy to Clipboard">
+                                        <i class="fas fa-copy"></i> Copy PIN
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // Driver Handover Info (Shown when Dispatched or Received)
+                let driverInfoHtml = '';
+                if (r.collected_by_name || r.dispatched_at) {
+                    driverInfoHtml = `
+                        <div class="p-4 rounded-xl bg-indigo-50 border border-indigo-200 text-xs space-y-2">
+                            <div class="flex items-center justify-between font-bold text-indigo-950">
+                                <span><i class="fas fa-id-badge text-indigo-600 mr-1.5"></i> Courier / Runner Handover Details</span>
+                                <span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 uppercase text-[10px]">In Custody</span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 text-hemo-charcoal pt-1">
+                                <div><span class="text-hemo-gray block">Driver / Runner:</span> <strong>${r.collected_by_name || 'N/A'}</strong></div>
+                                <div><span class="text-hemo-gray block">Phone / Reg:</span> <strong>${r.collected_by_phone || 'N/A'}</strong></div>
+                                <div><span class="text-hemo-gray block">Dispatched At:</span> <strong>${r.dispatched_at ? new Date(r.dispatched_at).toLocaleString() : 'N/A'}</strong></div>
+                                <div><span class="text-hemo-gray block">Cold-Chain Seal:</span> <strong class="text-hemo-success"><i class="fas fa-shield-check"></i> Intact</strong></div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // Hospital Confirm Receipt Action Button
+                let confirmReceiptActionHtml = '';
+                if (r.status === 'Dispatched' || r.collection_status === 'Dispatched') {
+                    confirmReceiptActionHtml = `
+                        <div class="p-4 rounded-xl bg-green-50 border border-green-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div>
+                                <p class="text-xs font-bold text-green-950">Package Arrived at Hospital?</p>
+                                <p class="text-[11px] text-green-800">Confirm receipt to verify cold-chain temperature and close this requisition.</p>
+                            </div>
+                            <button onclick="closeModal('viewRequestModal'); openConfirmReceiptModal(${r.request_id})"
+                                    class="px-5 py-2.5 rounded-xl bg-hemo-success hover:bg-green-700 text-white font-bold text-xs shadow-md transition-fast flex items-center gap-2 whitespace-nowrap">
+                                <i class="fas fa-check-double"></i> Confirm Package Received
+                            </button>
+                        </div>
+                    `;
+                }
+
                 document.getElementById('viewContent').innerHTML = `
-                    <div class="flex items-center gap-6 mb-6">
-                        <div class="w-16 h-16 rounded-xl bg-hemo-light-red flex items-center justify-center flex-shrink-0">
-                            <i class="fas fa-clipboard-list text-hemo-red text-2xl"></i>
+                    <div class="flex items-center justify-between pb-4 border-b border-hemo-border">
+                        <div class="flex items-center gap-3">
+                            <span class="text-base font-mono font-bold text-hemo-red bg-hemo-light-red px-2.5 py-1 rounded-lg">REQ-${String(r.request_id).padStart(4, '0')}</span>
+                            <span class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-bold bg-hemo-red text-white">
+                                <i class="fas fa-droplet text-[9px]"></i> ${bType}
+                            </span>
                         </div>
                         <div>
-                            <h4 class="text-xl font-bold text-hemo-navy">REQ-${String(r.request_id).padStart(4, '0')}</h4>
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-sm font-bold bg-hemo-red text-white mt-2">
-                                <i class="fas fa-droplet"></i> ${bType}
+                            <span class="text-xs font-semibold px-2.5 py-1 rounded-full ${r.urgency === 'Emergency' ? 'bg-red-100 text-hemo-warning' : (r.urgency === 'Urgent' ? 'bg-amber-100 text-hemo-amber' : 'bg-blue-100 text-blue-700')}">
+                                ${r.urgency} Urgency
                             </span>
                         </div>
                     </div>
-                    
-                    <div class="grid grid-cols-2 gap-y-4 gap-x-6 mb-6">
-                        <div><span class="text-xs text-hemo-gray block mb-1">Status</span><span class="text-sm font-semibold">${r.status}</span></div>
-                        <div><span class="text-xs text-hemo-gray block mb-1">Urgency</span><span class="text-sm font-semibold">${r.urgency}</span></div>
-                        <div><span class="text-xs text-hemo-gray block mb-1">Units Requested</span><span class="text-sm font-semibold">${r.units_requested}</span></div>
-                        <div><span class="text-xs text-hemo-gray block mb-1">Units Fulfilled</span><span class="text-sm font-semibold">${r.units_fulfilled || 0}</span></div>
-                        <div class="col-span-2"><span class="text-xs text-hemo-gray block mb-1">Requested By</span><span class="text-sm font-semibold">${r.requester_first || ''} ${r.requester_last || ''}</span></div>
-                        <div class="col-span-2"><span class="text-xs text-hemo-gray block mb-1">Notes</span><span class="text-sm font-semibold">${r.notes || 'None'}</span></div>
+
+                    ${stepperHtml}
+                    ${pinCardHtml}
+                    ${driverInfoHtml}
+                    ${confirmReceiptActionHtml}
+
+                    <div class="grid grid-cols-2 gap-4 p-4 rounded-xl bg-hemo-off-white border border-hemo-border text-xs">
+                        <div><span class="text-hemo-gray block mb-0.5">Units Requested</span><span class="text-sm font-bold text-hemo-navy">${r.units_requested} units</span></div>
+                        <div><span class="text-hemo-gray block mb-0.5">Units Fulfilled</span><span class="text-sm font-bold text-hemo-navy">${r.units_fulfilled || 0} units</span></div>
+                        <div><span class="text-hemo-gray block mb-0.5">Hospital</span><span class="font-semibold text-hemo-navy">${r.hospital_name || 'N/A'}</span></div>
+                        <div><span class="text-hemo-gray block mb-0.5">Requested By</span><span class="font-semibold text-hemo-navy">${r.requester_first || ''} ${r.requester_last || ''}</span></div>
+                        ${r.notes ? `<div class="col-span-2 pt-2 border-t border-hemo-border"><span class="text-hemo-gray block mb-0.5">Clinical Notes:</span><p class="text-hemo-charcoal italic">${r.notes}</p></div>` : ''}
                     </div>
                 `;
             }

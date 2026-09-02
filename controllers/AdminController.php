@@ -5,11 +5,20 @@
  * Post-consolidation: donor CRUD operates on users table directly
  */
 class AdminController {
-    private $userModel;
-    private $donorModel;
-    private $hospitalModel;
-    private $bloodInventory;
-    private $requestModel;
+    /** @var User */
+    private User $userModel;
+
+    /** @var DonorModel */
+    private DonorModel $donorModel;
+
+    /** @var HospitalModel */
+    private HospitalModel $hospitalModel;
+
+    /** @var BloodInventory */
+    private BloodInventory $bloodInventory;
+
+    /** @var RequestsModel */
+    private RequestsModel $requestModel;
 
     public function __construct() {
         $this->userModel = new User();
@@ -314,8 +323,8 @@ class AdminController {
         $requestId  = (int)($_POST['request_id'] ?? 0);
         $hospitalId = (int)($_POST['hospital_id'] ?? 0);
 
-        if (!$requestId || !$hospitalId) {
-            redirect('admin_hospitals', 'Invalid request parameters', 'error');
+        if (!$requestId) {
+            redirect('admin_requests', 'Invalid request parameters', 'error');
         }
 
         try {
@@ -323,9 +332,11 @@ class AdminController {
             $releasePin = sprintf('%06d', mt_rand(100000, 999999));
             $this->hospitalModel->markReadyForPickup($requestId, $releasePin);
 
-            redirect('admin_hospital_profile&hospital_id=' . $hospitalId, 'Request marked Ready for Pickup. Release PIN: ' . $releasePin, 'success');
+            $targetRoute = ($hospitalId > 0) ? 'admin_hospital_profile&hospital_id=' . $hospitalId : 'admin_requests';
+            redirect($targetRoute, 'Request marked Ready for Pickup. 6-Digit Release PIN generated.', 'success');
         } catch (Exception $e) {
-            redirect('admin_hospital_profile&hospital_id=' . $hospitalId, 'Error updating pickup status: ' . $e->getMessage(), 'error');
+            $targetRoute = ($hospitalId > 0) ? 'admin_hospital_profile&hospital_id=' . $hospitalId : 'admin_requests';
+            redirect($targetRoute, 'Error updating pickup status: ' . $e->getMessage(), 'error');
         }
     }
 
@@ -359,6 +370,25 @@ class AdminController {
             echo json_encode(['success' => false, 'message' => 'Error verifying PIN: ' . $e->getMessage()]);
             exit;
         }
+    }
+
+    /**
+     * Get JSON request audit details for Admin View Modal (with 4-step progress and PIN)
+     */
+    public function getRequestDetailsJson() {
+        requireRole(ROLE_ADMIN);
+        header('Content-Type: application/json');
+
+        $requestId = (int)($_GET['id'] ?? $_GET['request_id'] ?? 0);
+        $req = $this->hospitalModel->getRequestDetailsWithAudit($requestId);
+
+        if (!$req) {
+            echo json_encode(['success' => false, 'message' => 'Request not found.']);
+            exit;
+        }
+
+        echo json_encode(['success' => true, 'data' => $req]);
+        exit;
     }
 
     /**

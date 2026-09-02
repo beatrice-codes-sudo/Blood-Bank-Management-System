@@ -47,19 +47,21 @@ sequenceDiagram
     CentralBank->>HemoLink: Allocate & Cross-match Units
     CentralBank->>HemoLink: Mark "Ready for Pickup"
     HemoLink->>HemoLink: Generate Encrypted 6-Digit Release PIN & QR
-    HemoLink-->>Hospital: Display "Ready for Collection" + Release PIN (e.g. 849-201)
+    HemoLink-->>Hospital: Display "Ready for Collection" + Release PIN (e.g. 849-201) in View Details Modal
     Hospital->>Runner: Dispatches Runner with Validated Cool-Box & Release PIN
     Runner->>CentralBank: Arrives at Blood Bank & presents PIN (849-201)
     CentralBank->>HemoLink: Enters PIN to Verify Authorization
-    HemoLink-->>CentralBank: PIN Verified ✅ (Logs Runner Name & Timestamp)
+    HemoLink-->>CentralBank: PIN Verified ✅ (Status: Dispatched / In Transit)
     CentralBank->>Runner: Hand over Blood Units in Cold Container
-    HemoLink-->>Hospital: Instant Status Update: "Collected & In Transit"
+    Runner->>Hospital: Delivers units to destination hospital transfusion lab
+    Hospital->>HemoLink: Confirms delivery & verifies cold-chain temperature (Status: Fulfilled / Received ✅)
 ```
 
 ### 2.3 Key Benefits of the Click & Collect Model
-1. **Zero Cold-Chain Liability for HemoLink:** Transfer of custody is recorded with cryptographic timestamps at the central bank counter.
+1. **Two-Way Cold-Chain Integrity:** Tracks both counter dispatch from the central bank and package receipt verification at the destination hospital.
 2. **Elimination of Transfusion Fraud:** Biological units cannot be released to unauthorized couriers without the authenticated 6-digit dynamic token.
 3. **Instant Operational Readiness:** Hospitals utilize their existing on-call ambulances and clinical drivers.
+
 
 ---
 

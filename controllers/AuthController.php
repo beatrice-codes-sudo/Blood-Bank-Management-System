@@ -5,8 +5,11 @@
  * Post-consolidation: single INSERT for donor registration, role is a string
  */
 class AuthController {
-    private $userModel;
-    private $hospitalModel;
+    /** @var User */
+    private User $userModel;
+
+    /** @var HospitalModel */
+    private HospitalModel $hospitalModel;
 
     public function __construct() {
         $this->userModel = new User();
@@ -267,8 +270,11 @@ class AuthController {
 
     /**
      * Common registration validation
+     *
+     * @param array $data
+     * @return array
      */
-    private function validateRegistration($data) {
+    private function validateRegistration(array $data): array {
         $errors = [];
 
         if (empty($data['first_name'])) $errors[] = 'First name is required';

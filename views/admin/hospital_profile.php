@@ -10,7 +10,8 @@ $hId = $hospital['hospital_id'];
 ob_start();
 $flash = getFlashMessage();
 $urgencyMap = ['Normal'=>['Low','bg-blue-100 text-blue-700'],'Urgent'=>['High','bg-amber-100 text-amber-700'],'Emergency'=>['Critical','bg-red-100 text-hemo-warning']];
-$statusColors = ['Pending'=>'bg-amber-100 text-amber-700','Processing'=>'bg-blue-100 text-blue-700','Fulfilled'=>'bg-green-100 text-hemo-success','Partially Fulfilled'=>'bg-indigo-100 text-indigo-700','Rejected'=>'bg-red-100 text-hemo-warning','Cancelled'=>'bg-gray-100 text-gray-600'];
+$statusColors = ['Pending'=>'bg-amber-100 text-amber-700','Processing'=>'bg-blue-100 text-blue-700','Dispatched'=>'bg-indigo-100 text-indigo-700','Fulfilled'=>'bg-green-100 text-hemo-success','Partially Fulfilled'=>'bg-indigo-100 text-indigo-700','Rejected'=>'bg-red-100 text-hemo-warning','Cancelled'=>'bg-gray-100 text-gray-600'];
+
 ?>
 
 <?php if ($flash): ?>
@@ -114,7 +115,7 @@ $statusColors = ['Pending'=>'bg-amber-100 text-amber-700','Processing'=>'bg-blue
                             <button onclick="openVerifyPinModal(<?php echo $r['request_id']; ?>, '<?php echo sanitize($r['hospital_name'] ?? $hName); ?>')" class="p-2 rounded-lg bg-amber-100 text-amber-800 hover:bg-amber-200 transition-fast font-bold text-xs" title="Verify Runner Release PIN">
                                 <i class="fas fa-key text-sm mr-1"></i> Verify PIN
                             </button>
-                        <?php elseif($r['status']!=='Fulfilled' && $r['status']!=='Cancelled' && $r['status']!=='Rejected'): ?>
+                        <?php elseif($r['status']!=='Fulfilled' && $r['status']!=='Dispatched' && $r['status']!=='Cancelled' && $r['status']!=='Rejected'): ?>
                             <form method="POST" action="<?php echo BASE_URL; ?>/index.php?page=admin_mark_ready_pickup" class="inline" title="Mark Ready for Pickup (Generates 6-Digit PIN)">
                                 <input type="hidden" name="request_id" value="<?php echo $r['request_id']; ?>">
                                 <input type="hidden" name="hospital_id" value="<?php echo $hId; ?>">
@@ -333,88 +334,165 @@ async function submitVerifyPin(e) {
     }
 }
 
+function copyPinToClipboard(pin, btnId = 'btnCopyPinAdmin') {
+    navigator.clipboard.writeText(pin).then(() => {
+        const btn = document.getElementById(btnId);
+        if (btn) {
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+            btn.classList.add('bg-green-600', 'text-white');
+            setTimeout(() => {
+                btn.innerHTML = originalHtml;
+                btn.classList.remove('bg-green-600', 'text-white');
+            }, 2000);
+        }
+    });
+}
+
 const urgencyLabels={'Normal':['Low','text-blue-700'],'Urgent':['High','text-amber-700'],'Emergency':['Critical','text-hemo-warning']};
-const statusLabels={'Pending':'bg-amber-100 text-amber-700','Processing':'bg-blue-100 text-blue-700','Fulfilled':'bg-green-100 text-hemo-success','Partially Fulfilled':'bg-indigo-100 text-indigo-700','Rejected':'bg-red-100 text-hemo-warning','Cancelled':'bg-gray-100 text-gray-600'};
+const statusLabels={'Pending':'bg-amber-100 text-amber-700','Processing':'bg-blue-100 text-blue-700','Dispatched':'bg-indigo-100 text-indigo-700','Fulfilled':'bg-green-100 text-hemo-success','Partially Fulfilled':'bg-indigo-100 text-indigo-700','Rejected':'bg-red-100 text-hemo-warning','Cancelled':'bg-gray-100 text-gray-600'};
 
 async function viewRequest(id){
     openModal('viewRequestModal');
     document.getElementById('reqLoader').classList.remove('hidden');
     document.getElementById('reqContent').classList.add('hidden');
     try{
-        const res=await fetch(`<?php echo BASE_URL; ?>/index.php?page=admin_hospital_request_view&request_id=${id}`);
+        const res=await fetch(`<?php echo BASE_URL; ?>/index.php?page=admin_get_request_json&id=${id}`);
         const data=await res.json();
-        if(data.request){
-            const r=data.request;
-            const available_units = data.available_units || 0;
-            const remaining_requested = r.units_requested - (r.units_fulfilled || 0);
-            const canDispatch = r.status !== 'Fulfilled' && r.status !== 'Cancelled' && r.status !== 'Rejected';
-            
+        if(data.success && data.data){
+            const r=data.data;
             const urg=urgencyLabels[r.urgency]||['Medium','text-gray-700'];
             const sc=statusLabels[r.status]||'bg-gray-100 text-gray-600';
             
-            let dispatchFormHtml = '';
-            if(canDispatch){
-                dispatchFormHtml = `
-                    <form action="<?php echo BASE_URL; ?>/index.php?page=admin_dispatch_units" method="POST" class="mt-4 pt-4 border-t border-hemo-border">
-                        <input type="hidden" name="request_id" value="${r.request_id}">
-                        <input type="hidden" name="hospital_id" value="<?php echo $hId; ?>">
-                        <h4 class="text-sm font-bold text-hemo-navy mb-3"><i class="fas fa-truck-ramp-box mr-1 text-hemo-red"></i> Dispatch Blood Units</h4>
-                        
-                        <div class="bg-hemo-light-gray rounded-lg p-3 mb-4 flex items-center justify-between">
-                            <div>
-                                <span class="text-xs text-hemo-gray block">Available in Inventory</span>
-                                <span class="text-sm font-bold text-hemo-navy">${available_units} units (${r.blood_type})</span>
-                            </div>
-                            <div>
-                                <span class="text-xs text-hemo-gray block">Remaining Requested</span>
-                                <span class="text-sm font-bold text-hemo-red">${remaining_requested} units</span>
-                            </div>
+            // Stepper Step Number (1: Submitted, 2: Ready, 3: Dispatched, 4: Received)
+            let step = 1;
+            if (r.status === 'Fulfilled' || r.collection_status === 'Received') {
+                step = 4;
+            } else if (r.status === 'Dispatched' || r.collection_status === 'Dispatched') {
+                step = 3;
+            } else if (r.collection_status === 'Ready for Pickup' || r.release_pin) {
+                step = 2;
+            }
+
+            const stepperHtml = `
+                <div class="py-3 px-2 bg-hemo-off-white rounded-xl border border-hemo-border mb-4">
+                    <div class="grid grid-cols-4 relative">
+                        <div class="absolute top-1/2 left-1/8 right-1/8 h-1 bg-gray-200 -translate-y-1/2 z-0">
+                            <div class="h-full bg-hemo-red transition-all duration-500" style="width: ${((step - 1) / 3) * 100}%"></div>
                         </div>
 
-                        <div class="grid grid-cols-2 gap-4 mb-4">
-                            <div>
-                                <label class="block text-xs font-semibold text-hemo-charcoal mb-1">Units to Dispatch</label>
-                                <input type="number" name="units_to_dispatch" min="0" max="${remaining_requested}" value="${Math.min(available_units, remaining_requested)}" required class="w-full px-3 py-2 border border-hemo-border rounded-lg text-sm outline-none focus:border-hemo-red">
+                        <div class="relative z-10 flex flex-col items-center text-center">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${step >= 1 ? 'bg-hemo-red text-white shadow-md' : 'bg-gray-200 text-gray-500'}">
+                                <i class="fas fa-check"></i>
                             </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-hemo-charcoal mb-1">Target Status</label>
-                                <select name="status" class="w-full px-3 py-2 border border-hemo-border rounded-lg text-sm bg-white outline-none focus:border-hemo-red">
-                                    <option value="Fulfilled" ${available_units >= remaining_requested ? 'selected' : ''}>Fulfilled</option>
-                                    <option value="Partially Fulfilled" ${available_units < remaining_requested && available_units > 0 ? 'selected' : ''}>Partially Fulfilled</option>
-                                    <option value="Pending" ${available_units === 0 ? 'selected' : ''}>Pending</option>
-                                    <option value="Rejected">Rejected</option>
-                                </select>
-                            </div>
+                            <span class="text-[11px] font-bold mt-1 text-hemo-navy">1. Submitted</span>
+                            <span class="text-[9px] text-hemo-gray">${r.created_at ? new Date(r.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : ''}</span>
                         </div>
 
-                        <button type="submit" class="w-full py-2 bg-hemo-red text-white text-sm font-semibold rounded-lg hover:bg-hemo-deep-red transition-fast">
-                            Confirm Dispatch & Update
+                        <div class="relative z-10 flex flex-col items-center text-center">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${step >= 2 ? 'bg-hemo-red text-white shadow-md' : 'bg-gray-200 text-gray-500'}">
+                                ${step >= 2 ? '<i class="fas fa-box-archive"></i>' : '2'}
+                            </div>
+                            <span class="text-[11px] font-bold mt-1 ${step >= 2 ? 'text-hemo-navy' : 'text-gray-400'}">2. Ready</span>
+                            <span class="text-[9px] text-hemo-gray">${r.release_pin ? 'PIN Generated' : 'Pending'}</span>
+                        </div>
+
+                        <div class="relative z-10 flex flex-col items-center text-center">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${step >= 3 ? 'bg-hemo-red text-white shadow-md' : 'bg-gray-200 text-gray-500'}">
+                                ${step >= 3 ? '<i class="fas fa-truck-fast"></i>' : '3'}
+                            </div>
+                            <span class="text-[11px] font-bold mt-1 ${step >= 3 ? 'text-hemo-navy' : 'text-gray-400'}">3. Dispatched</span>
+                            <span class="text-[9px] text-hemo-gray">${r.dispatched_at ? 'In Transit' : 'Pending'}</span>
+                        </div>
+
+                        <div class="relative z-10 flex flex-col items-center text-center">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${step >= 4 ? 'bg-hemo-success text-white shadow-md' : 'bg-gray-200 text-gray-500'}">
+                                ${step >= 4 ? '<i class="fas fa-check-double"></i>' : '4'}
+                            </div>
+                            <span class="text-[11px] font-bold mt-1 ${step >= 4 ? 'text-hemo-success' : 'text-gray-400'}">4. Delivered</span>
+                            <span class="text-[9px] text-hemo-gray">${r.received_at ? 'Received' : 'Pending'}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            let pinCardHtml = '';
+            if (r.release_pin) {
+                pinCardHtml = `
+                    <div class="p-4 rounded-xl bg-amber-50 border border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <div class="flex items-center gap-1.5 text-xs font-bold text-amber-900 uppercase">
+                                <i class="fas fa-key text-amber-600"></i> Click & Collect Release PIN
+                            </div>
+                            <p class="text-[11px] text-amber-800">Runner must present this code at counter.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="bg-white px-3 py-1.5 rounded-lg border border-amber-300 font-mono font-bold text-xl tracking-widest text-amber-950">
+                                ${r.release_pin}
+                            </div>
+                            <button type="button" id="btnCopyPinAdmin" onclick="copyPinToClipboard('${r.release_pin}', 'btnCopyPinAdmin')"
+                                    class="px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-sm transition-fast flex items-center gap-1">
+                                <i class="fas fa-copy"></i> Copy
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            let driverInfoHtml = '';
+            if (r.collected_by_name || r.dispatched_at) {
+                driverInfoHtml = `
+                    <div class="p-3.5 rounded-xl bg-indigo-50 border border-indigo-200 text-xs">
+                        <p class="font-bold text-indigo-950 mb-1.5"><i class="fas fa-id-badge text-indigo-600 mr-1"></i> Courier Handover Audit</p>
+                        <div class="grid grid-cols-2 gap-2 text-hemo-charcoal">
+                            <div><span class="text-hemo-gray block">Driver:</span> <strong>${r.collected_by_name || 'N/A'}</strong></div>
+                            <div><span class="text-hemo-gray block">Phone / Reg:</span> <strong>${r.collected_by_phone || 'N/A'}</strong></div>
+                            <div><span class="text-hemo-gray block">Dispatched:</span> <strong>${r.dispatched_at ? new Date(r.dispatched_at).toLocaleString() : 'N/A'}</strong></div>
+                            <div><span class="text-hemo-gray block">Delivery Received:</span> <strong>${r.received_at ? new Date(r.received_at).toLocaleString() : 'In Transit'}</strong></div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            let actionButtonsHtml = '';
+            if (r.collection_status === 'Ready for Pickup') {
+                actionButtonsHtml = `
+                    <div class="pt-2">
+                        <button onclick="closeModal('viewRequestModal'); openVerifyPinModal(${r.request_id}, '${r.hospital_name || ''}')"
+                                class="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-md transition-fast flex items-center justify-center gap-2">
+                            <i class="fas fa-key"></i> Verify Runner Release PIN & Dispatch Units
                         </button>
-                    </form>
+                    </div>
                 `;
             }
 
             document.getElementById('reqContent').innerHTML=`
                 <div class="space-y-4">
-                    <div class="flex items-center gap-4 pb-4 border-b border-hemo-border">
-                        <span class="text-sm font-mono text-hemo-red bg-hemo-light-red px-2 py-1 rounded">R-${String(r.request_id).padStart(4,'0')}</span>
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${sc}">${r.status}</span>
+                    <div class="flex items-center justify-between pb-3 border-b border-hemo-border">
+                        <div class="flex items-center gap-3">
+                            <span class="text-sm font-mono font-bold text-hemo-red bg-hemo-light-red px-2.5 py-1 rounded">R-${String(r.request_id).padStart(4,'0')}</span>
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${sc}">${r.status}</span>
+                        </div>
                         <span class="text-xs ${urg[1]} font-semibold">${urg[0]} Urgency</span>
                     </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div><span class="text-xs text-hemo-gray block">Blood Type</span><span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-hemo-red text-white"><i class="fas fa-droplet text-[9px]"></i> ${r.blood_type||'N/A'}</span></div>
-                        <div><span class="text-xs text-hemo-gray block">Units</span><span class="text-sm font-semibold">${r.units_fulfilled||0} / ${r.units_requested}</span></div>
-                        <div><span class="text-xs text-hemo-gray block">Hospital</span><span class="text-sm font-semibold">${r.hospital_name||'N/A'}</span></div>
-                        <div><span class="text-xs text-hemo-gray block">Requested</span><span class="text-sm font-semibold">${r.created_at?new Date(r.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'N/A'}</span></div>
+
+                    ${stepperHtml}
+                    ${pinCardHtml}
+                    ${driverInfoHtml}
+                    ${actionButtonsHtml}
+
+                    <div class="grid grid-cols-2 gap-4 p-4 rounded-xl bg-hemo-off-white border border-hemo-border text-xs">
+                        <div><span class="text-hemo-gray block">Blood Type</span><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold bg-hemo-red text-white"><i class="fas fa-droplet text-[9px]"></i> ${r.blood_type||'N/A'}</span></div>
+                        <div><span class="text-hemo-gray block">Units</span><span class="text-sm font-bold text-hemo-navy">${r.units_fulfilled||0} / ${r.units_requested} units</span></div>
+                        <div><span class="text-hemo-gray block">Hospital</span><span class="font-semibold text-hemo-navy">${r.hospital_name||'N/A'}</span></div>
+                        <div><span class="text-hemo-gray block">Requested On</span><span class="font-semibold text-hemo-navy">${r.created_at?new Date(r.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'N/A'}</span></div>
                     </div>
-                    ${r.requester_first?`<div class="bg-hemo-light-gray rounded-xl p-4 mt-2">
-                        <p class="text-xs text-hemo-gray mb-2 font-semibold uppercase">Requested By</p>
-                        <p class="text-sm font-semibold text-hemo-navy">${r.requester_first} ${r.requester_last||''}</p>
-                        <p class="text-xs text-hemo-charcoal mt-1"><i class="fas fa-envelope text-hemo-gray mr-1"></i>${r.requester_email||'N/A'}</p>
-                        <p class="text-xs text-hemo-charcoal mt-0.5"><i class="fas fa-phone text-hemo-gray mr-1"></i>${r.requester_phone||'N/A'}</p>
+
+                    ${r.requester_first?`<div class="bg-hemo-light-gray rounded-xl p-3 text-xs">
+                        <p class="text-hemo-gray font-bold uppercase mb-1">Requested By</p>
+                        <p class="font-semibold text-hemo-navy">${r.requester_first} ${r.requester_last||''}</p>
+                        <p class="text-hemo-charcoal mt-0.5"><i class="fas fa-envelope text-hemo-gray mr-1"></i>${r.requester_email||'N/A'} &nbsp;|&nbsp; <i class="fas fa-phone text-hemo-gray mr-1"></i>${r.requester_phone||'N/A'}</p>
                     </div>`:''}
-                    ${r.notes?`<div><span class="text-xs text-hemo-gray block">Notes</span><p class="text-sm text-hemo-charcoal mt-1">${r.notes}</p></div>`:''}
-                    ${dispatchFormHtml}
                 </div>`;
         }
     }catch(e){document.getElementById('reqContent').innerHTML='<p class="text-center text-hemo-warning">Failed to load request.</p>';}
