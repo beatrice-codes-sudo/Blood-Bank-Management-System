@@ -12,20 +12,36 @@ USE `bms_db`;
 SET foreign_key_checks = 0;
 
 -- Clean existing data
-TRUNCATE TABLE `audit_logs`;
-TRUNCATE TABLE `distributions`;
-TRUNCATE TABLE `payments`;
-TRUNCATE TABLE `request_items`;
-TRUNCATE TABLE `requests`;
-TRUNCATE TABLE `emergency_appeals`;
-TRUNCATE TABLE `stock_thresholds`;
-TRUNCATE TABLE `blood_tests`;
-TRUNCATE TABLE `appointments`;
-TRUNCATE TABLE `donor_health_history`;
-TRUNCATE TABLE `blood_units`;
-TRUNCATE TABLE `donations`;
-TRUNCATE TABLE `hospitals`;
-TRUNCATE TABLE `users`;
+DELETE FROM `audit_logs`;
+DELETE FROM `distributions`;
+DELETE FROM `payments`;
+DELETE FROM `request_items`;
+DELETE FROM `requests`;
+DELETE FROM `emergency_appeals`;
+DELETE FROM `stock_thresholds`;
+DELETE FROM `blood_tests`;
+DELETE FROM `appointments`;
+DELETE FROM `donor_health_history`;
+DELETE FROM `blood_units`;
+DELETE FROM `donations`;
+DELETE FROM `hospitals`;
+DELETE FROM `users`;
+
+-- Reset AUTO_INCREMENT counters
+ALTER TABLE `audit_logs` AUTO_INCREMENT = 1;
+ALTER TABLE `distributions` AUTO_INCREMENT = 1;
+ALTER TABLE `payments` AUTO_INCREMENT = 1;
+ALTER TABLE `request_items` AUTO_INCREMENT = 1;
+ALTER TABLE `requests` AUTO_INCREMENT = 1;
+ALTER TABLE `emergency_appeals` AUTO_INCREMENT = 1;
+ALTER TABLE `stock_thresholds` AUTO_INCREMENT = 1;
+ALTER TABLE `blood_tests` AUTO_INCREMENT = 1;
+ALTER TABLE `appointments` AUTO_INCREMENT = 1;
+ALTER TABLE `donor_health_history` AUTO_INCREMENT = 1;
+ALTER TABLE `blood_units` AUTO_INCREMENT = 1;
+ALTER TABLE `donations` AUTO_INCREMENT = 1;
+ALTER TABLE `hospitals` AUTO_INCREMENT = 1;
+ALTER TABLE `users` AUTO_INCREMENT = 1;
 
 -- --------------------------------------------------------
 -- 1. Users (1 admin + 3 hospital managers + 6 donors)
