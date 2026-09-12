@@ -14,6 +14,7 @@ Welcome to the HemoLink documentation. These files are written to help you under
 | 3 | [User Journey](03-user-journey.md) | Step-by-step workflows for Admins, Hospitals, and Donors |
 | 4 | [Security Guide](04-security.md) | Authentication, authorization, SQL injection protection |
 | 5 | [Database Guide](05-database.md) | All 14 tables explained, with ERD and test credentials |
+| 6 | [System Diagrams](images/diagrams.md) | ERD, DFD Level 0/1, Use Case, Architecture & Login Flowchart |
 
 ---
 
